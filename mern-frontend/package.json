@@ -1,0 +1,43 @@
+{
+  "name": "hospital-meal-management-frontend",
+  "version": "1.0.0",
+  "description": "Hospital Meal Management System - React Frontend",
+  "private": true,
+  "dependencies": {
+    "axios": "^1.6.0",
+    "lucide-react": "^0.290.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-router-dom": "^6.20.0"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.2.0",
+    "autoprefixer": "^10.4.16",
+    "postcss": "^8.4.31",
+    "tailwindcss": "^3.3.0",
+    "vite": "^7.3.1"
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "lint": "eslint src --ext js,jsx"
+  },
+  "eslintConfig": {
+    "extends": [
+      "react-app"
+    ]
+  },
+  "browserslist": {
+    "production": [
+      ">0.2%",
+      "not dead",
+      "not op_mini all"
+    ],
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
+  }
+}

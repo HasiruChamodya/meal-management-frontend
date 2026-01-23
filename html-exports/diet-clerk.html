@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Diet Clerk Dashboard - Hospital Meal Management</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background-color: #faf8f3;
+      color: #4a4a4a;
+      font-size: 16px;
+      line-height: 1.5;
+      min-height: 100vh;
+    }
+
+    .header {
+      background: white;
+      border-bottom: 1px solid #d9d5ce;
+      padding: 16px 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .header-content h1 {
+      font-size: 24px;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+
+    .header-content p {
+      color: #8b8b8b;
+      font-size: 14px;
+    }
+
+    .logout-btn {
+      background: #d4845c;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 600;
+    }
+
+    .logout-btn:hover {
+      background: #c4744c;
+    }
+
+    .container {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 24px;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+      gap: 24px;
+      margin-bottom: 24px;
+    }
+
+    .card {
+      background: white;
+      border-radius: 12px;
+      padding: 24px;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    }
+
+    .card h2 {
+      font-size: 20px;
+      font-weight: 700;
+      margin-bottom: 16px;
+      color: #4a4a4a;
+    }
+
+    .form-group {
+      margin-bottom: 16px;
+    }
+
+    label {
+      display: block;
+      font-weight: 600;
+      margin-bottom: 8px;
+      color: #4a4a4a;
+      font-size: 16px;
+    }
+
+    input, select {
+      width: 100%;
+      height: 56px;
+      padding: 0 16px;
+      border: 1px solid #d9d5ce;
+      border-radius: 8px;
+      font-size: 16px;
+      background: white;
+    }
+
+    input:focus, select:focus {
+      outline: none;
+      border-color: #7a9b7f;
+      box-shadow: 0 0 0 3px rgba(122, 155, 127, 0.1);
+    }
+
+    .ward-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 16px;
+    }
+
+    .btn-primary {
+      width: 100%;
+      height: 56px;
+      background: #7a9b7f;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 18px;
+      font-weight: 600;
+      cursor: pointer;
+      margin-top: 16px;
+    }
+
+    .btn-primary:hover {
+      background: #6a8b6f;
+    }
+
+    .extra-items {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+
+    .extra-items input {
+      flex: 2;
+    }
+
+    .extra-items input[type="number"] {
+      flex: 1;
+    }
+
+    .btn-add {
+      height: 56px;
+      padding: 0 24px;
+      background: #6b9b6f;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .btn-add:hover {
+      background: #5b8b5f;
+    }
+
+    .item-list {
+      list-style: none;
+      margin-top: 16px;
+    }
+
+    .item-list li {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px;
+      background: #f5f3f0;
+      border-radius: 8px;
+      margin-bottom: 8px;
+    }
+
+    .btn-remove {
+      background: #d4845c;
+      color: white;
+      border: none;
+      padding: 6px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="header-content">
+      <h1>Diet Clerk Dashboard</h1>
+      <p>Daily Meal Entry & Management</p>
+    </div>
+    <button class="logout-btn" onclick="logout()">Logout</button>
+  </div>
+
+  <div class="container">
+    <div class="grid">
+      <div class="card">
+        <h2>Meal Counts by Ward</h2>
+        <div class="form-group">
+          <label>Date</label>
+          <input type="date" id="mealDate" value="2025-01-15">
+        </div>
+        <div class="ward-grid">
+          <div class="form-group">
+            <label>Ward A</label>
+            <input type="number" placeholder="0" min="0">
+          </div>
+          <div class="form-group">
+            <label>Ward B</label>
+            <input type="number" placeholder="0" min="0">
+          </div>
+          <div class="form-group">
+            <label>Ward C</label>
+            <input type="number" placeholder="0" min="0">
+          </div>
+          <div class="form-group">
+            <label>ICU</label>
+            <input type="number" placeholder="0" min="0">
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Cycle Type & Staff Meals</h2>
+        <div class="form-group">
+          <label>Lunch Protein Cycle</label>
+          <select>
+            <option>Chicken</option>
+            <option>Fish</option>
+            <option>Beef</option>
+            <option>Vegetarian</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Staff Breakfast</label>
+          <input type="number" placeholder="0" min="0">
+        </div>
+        <div class="form-group">
+          <label>Staff Lunch</label>
+          <input type="number" placeholder="0" min="0">
+        </div>
+        <div class="form-group">
+          <label>Staff Dinner</label>
+          <input type="number" placeholder="0" min="0">
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Extra Items</h2>
+        <div class="extra-items">
+          <input type="text" id="itemName" placeholder="Item name">
+          <input type="number" id="itemQty" placeholder="Qty" min="1">
+          <button class="btn-add" onclick="addItem()">Add</button>
+        </div>
+        <ul class="item-list" id="itemList">
+          <li>
+            <span>Extra Rice - 5 kg</span>
+            <button class="btn-remove">Remove</button>
+          </li>
+          <li>
+            <span>Extra Vegetables - 3 kg</span>
+            <button class="btn-remove">Remove</button>
+          </li>
+        </ul>
+      </div>
+    </div>
+
+    <button class="btn-primary" onclick="submitEntry()">Submit Daily Entry</button>
+  </div>
+
+  <script>
+    function logout() {
+      if (confirm('Are you sure you want to logout?')) {
+        window.location.href = 'login.html';
+      }
+    }
+
+    function addItem() {
+      const name = document.getElementById('itemName').value;
+      const qty = document.getElementById('itemQty').value;
+      
+      if (name && qty) {
+        const list = document.getElementById('itemList');
+        const li = document.createElement('li');
+        li.innerHTML = `
+          <span>${name} - ${qty} units</span>
+          <button class="btn-remove" onclick="this.parentElement.remove()">Remove</button>
+        `;
+        list.appendChild(li);
+        
+        document.getElementById('itemName').value = '';
+        document.getElementById('itemQty').value = '';
+      } else {
+        alert('Please enter both item name and quantity');
+      }
+    }
+
+    function submitEntry() {
+      alert('Daily meal entry submitted successfully!');
+    }
+  </script>
+</body>
+</html>

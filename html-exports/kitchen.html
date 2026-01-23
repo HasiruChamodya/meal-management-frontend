@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kitchen Display - Hospital Meal Management</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background-color: #2d3d2f;
+      color: #f5f3f0;
+      font-size: 20px;
+      line-height: 1.5;
+      min-height: 100vh;
+      padding: 32px;
+    }
+
+    .header {
+      text-align: center;
+      margin-bottom: 48px;
+    }
+
+    .header h1 {
+      font-size: 48px;
+      font-weight: 700;
+      color: #d4a574;
+      margin-bottom: 16px;
+    }
+
+    .clock {
+      font-size: 36px;
+      font-weight: 700;
+      color: #f5f3f0;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+      gap: 32px;
+      margin-bottom: 48px;
+    }
+
+    .card {
+      background: #3d4d3f;
+      border-radius: 16px;
+      padding: 32px;
+      border: 2px solid #4d5d4f;
+    }
+
+    .card h2 {
+      font-size: 32px;
+      font-weight: 700;
+      color: #d4a574;
+      margin-bottom: 24px;
+    }
+
+    .meal-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 16px 0;
+      border-bottom: 1px solid #4d5d4f;
+      font-size: 24px;
+    }
+
+    .meal-item:last-child {
+      border-bottom: none;
+    }
+
+    .meal-label {
+      color: #b8b8b8;
+    }
+
+    .meal-count {
+      font-weight: 700;
+      font-size: 32px;
+      color: #d4a574;
+    }
+
+    .recipe-section {
+      margin-bottom: 32px;
+    }
+
+    .recipe-title {
+      font-size: 28px;
+      font-weight: 700;
+      color: #d4a574;
+      margin-bottom: 16px;
+      padding-bottom: 12px;
+      border-bottom: 2px solid #4d5d4f;
+    }
+
+    .ingredient-item {
+      padding: 12px 0;
+      font-size: 22px;
+      color: #b8b8b8;
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .ingredient-qty {
+      color: #d4a574;
+      font-weight: 600;
+    }
+
+    .section-title {
+      font-size: 36px;
+      font-weight: 700;
+      color: #d4a574;
+      margin-bottom: 24px;
+      text-align: center;
+    }
+
+    .full-width {
+      grid-column: 1 / -1;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>🏥 Kitchen Production Display</h1>
+    <div class="clock" id="clock">00:00:00</div>
+  </div>
+
+  <div class="grid">
+    <div class="card">
+      <h2>Today's Meal Totals</h2>
+      <div class="meal-item">
+        <span class="meal-label">Normal Diet</span>
+        <span class="meal-count">45</span>
+      </div>
+      <div class="meal-item">
+        <span class="meal-label">Diabetic Diet</span>
+        <span class="meal-count">12</span>
+      </div>
+      <div class="meal-item">
+        <span class="meal-label">Low Sodium</span>
+        <span class="meal-count">8</span>
+      </div>
+      <div class="meal-item">
+        <span class="meal-label">Soft Diet</span>
+        <span class="meal-count">15</span>
+      </div>
+      <div class="meal-item">
+        <span class="meal-label">Staff Meals</span>
+        <span class="meal-count">20</span>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Protein Preparation</h2>
+      <div class="meal-item">
+        <span class="meal-label">Chicken</span>
+        <span class="meal-count">25 portions</span>
+      </div>
+      <div class="meal-item">
+        <span class="meal-label">Fish</span>
+        <span class="meal-count">15 portions</span>
+      </div>
+      <div class="meal-item">
+        <span class="meal-label">Beef</span>
+        <span class="meal-count">10 portions</span>
+      </div>
+      <div class="meal-item">
+        <span class="meal-label">Vegetarian</span>
+        <span class="meal-count">12 portions</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="card full-width">
+    <div class="section-title">📖 Recipe Details</div>
+    
+    <div class="recipe-section">
+      <div class="recipe-title">Grilled Chicken Breast (Lunch - 25 servings)</div>
+      <div class="ingredient-item">
+        <span>Chicken Breast</span>
+        <span class="ingredient-qty">3.75 kg</span>
+      </div>
+      <div class="ingredient-item">
+        <span>Olive Oil</span>
+        <span class="ingredient-qty">125 ml</span>
+      </div>
+      <div class="ingredient-item">
+        <span>Garlic</span>
+        <span class="ingredient-qty">50 g</span>
+      </div>
+      <div class="ingredient-item">
+        <span>Black Pepper</span>
+        <span class="ingredient-qty">25 g</span>
+      </div>
+      <div class="ingredient-item">
+        <span>Lemon Juice</span>
+        <span class="ingredient-qty">100 ml</span>
+      </div>
+    </div>
+
+    <div class="recipe-section">
+      <div class="recipe-title">Steamed Rice (Lunch - 62 servings)</div>
+      <div class="ingredient-item">
+        <span>White Rice</span>
+        <span class="ingredient-qty">9.3 kg</span>
+      </div>
+      <div class="ingredient-item">
+        <span>Water</span>
+        <span class="ingredient-qty">18.6 L</span>
+      </div>
+      <div class="ingredient-item">
+        <span>Salt</span>
+        <span class="ingredient-qty">62 g</span>
+      </div>
+    </div>
+
+    <div class="recipe-section">
+      <div class="recipe-title">Mixed Vegetables (Lunch - 62 servings)</div>
+      <div class="ingredient-item">
+        <span>Carrots</span>
+        <span class="ingredient-qty">3.1 kg</span>
+      </div>
+      <div class="ingredient-item">
+        <span>Green Beans</span>
+        <span class="ingredient-qty">2.48 kg</span>
+      </div>
+      <div class="ingredient-item">
+        <span>Broccoli</span>
+        <span class="ingredient-qty">1.86 kg</span>
+      </div>
+      <div class="ingredient-item">
+        <span>Olive Oil</span>
+        <span class="ingredient-qty">310 ml</span>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function updateClock() {
+      const now = new Date();
+      const hours = String(now.getHours()).padStart(2, '0');
+      const minutes = String(now.getMinutes()).padStart(2, '0');
+      const seconds = String(now.getSeconds()).padStart(2, '0');
+      document.getElementById('clock').textContent = `${hours}:${minutes}:${seconds}`;
+    }
+
+    updateClock();
+    setInterval(updateClock, 1000);
+  </script>
+</body>
+</html>

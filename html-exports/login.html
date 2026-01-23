@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login - Hospital Meal Management System</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      background-color: #faf8f3;
+      color: #4a4a4a;
+      font-size: 16px;
+      line-height: 1.5;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 480px;
+    }
+
+    .card {
+      background: #ffffff;
+      border-radius: 12px;
+      padding: 32px;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    }
+
+    .header {
+      text-align: center;
+      margin-bottom: 32px;
+    }
+
+    .logo {
+      width: 64px;
+      height: 64px;
+      background: #7a9b7f;
+      border-radius: 12px;
+      margin: 0 auto 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-size: 32px;
+      font-weight: bold;
+    }
+
+    h1 {
+      font-size: 30px;
+      font-weight: 700;
+      margin-bottom: 8px;
+      color: #4a4a4a;
+    }
+
+    .subtitle {
+      color: #8b8b8b;
+      font-size: 16px;
+    }
+
+    .form-group {
+      margin-bottom: 24px;
+    }
+
+    label {
+      display: block;
+      font-weight: 600;
+      margin-bottom: 8px;
+      color: #4a4a4a;
+      font-size: 16px;
+    }
+
+    .input-wrapper {
+      position: relative;
+    }
+
+    input {
+      width: 100%;
+      height: 56px;
+      padding: 0 16px;
+      border: 1px solid #d9d5ce;
+      border-radius: 8px;
+      font-size: 16px;
+      background: #ffffff;
+      color: #4a4a4a;
+      transition: all 0.2s;
+    }
+
+    input:focus {
+      outline: none;
+      border-color: #7a9b7f;
+      box-shadow: 0 0 0 3px rgba(122, 155, 127, 0.1);
+    }
+
+    input[type="password"] {
+      padding-right: 48px;
+    }
+
+    .toggle-password {
+      position: absolute;
+      right: 16px;
+      top: 50%;
+      transform: translateY(-50%);
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: #8b8b8b;
+      padding: 4px;
+    }
+
+    .toggle-password:hover {
+      color: #7a9b7f;
+    }
+
+    .forgot-password {
+      text-align: right;
+      margin-top: 8px;
+    }
+
+    .forgot-password a {
+      color: #7a9b7f;
+      text-decoration: none;
+      font-size: 14px;
+    }
+
+    .forgot-password a:hover {
+      text-decoration: underline;
+    }
+
+    .btn {
+      width: 100%;
+      height: 56px;
+      background: #7a9b7f;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 18px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    .btn:hover {
+      background: #6a8b6f;
+    }
+
+    .demo-credentials {
+      margin-top: 24px;
+      padding: 16px;
+      background: #f5f3f0;
+      border-radius: 8px;
+      border-left: 4px solid #7a9b7f;
+    }
+
+    .demo-credentials h3 {
+      font-size: 14px;
+      font-weight: 600;
+      margin-bottom: 12px;
+      color: #4a4a4a;
+    }
+
+    .demo-credentials ul {
+      list-style: none;
+      font-size: 14px;
+      color: #8b8b8b;
+    }
+
+    .demo-credentials li {
+      margin-bottom: 4px;
+    }
+
+    .demo-credentials code {
+      background: #e8e6e1;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-family: monospace;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="card">
+      <div class="header">
+        <div class="logo">🏥</div>
+        <h1>Hospital Meal Management</h1>
+        <p class="subtitle">Sign in to your account</p>
+      </div>
+
+      <form id="loginForm">
+        <div class="form-group">
+          <label for="username">Username</label>
+          <input type="text" id="username" name="username" placeholder="Enter your username" required>
+        </div>
+
+        <div class="form-group">
+          <label for="password">Password</label>
+          <div class="input-wrapper">
+            <input type="password" id="password" name="password" placeholder="Enter your password" required>
+            <button type="button" class="toggle-password" onclick="togglePassword()">
+              <svg id="eyeIcon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                <circle cx="12" cy="12" r="3"></circle>
+              </svg>
+            </button>
+          </div>
+          <div class="forgot-password">
+            <a href="forgot-password.html">Forgot password?</a>
+          </div>
+        </div>
+
+        <button type="submit" class="btn">Sign In</button>
+      </form>
+
+      <div class="demo-credentials">
+        <h3>Demo Credentials:</h3>
+        <ul>
+          <li>Diet Clerk: <code>dietclerk</code> / <code>password123</code></li>
+          <li>Admin: <code>admin</code> / <code>password123</code></li>
+          <li>Subject Clerk: <code>subjectclerk</code> / <code>password123</code></li>
+          <li>Accountant: <code>accountant</code> / <code>password123</code></li>
+          <li>Kitchen Staff: <code>kitchen</code> / <code>password123</code></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function togglePassword() {
+      const passwordInput = document.getElementById('password');
+      const eyeIcon = document.getElementById('eyeIcon');
+      
+      if (passwordInput.type === 'password') {
+        passwordInput.type = 'text';
+        eyeIcon.innerHTML = '<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line>';
+      } else {
+        passwordInput.type = 'password';
+        eyeIcon.innerHTML = '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle>';
+      }
+    }
+
+    document.getElementById('loginForm').addEventListener('submit', function(e) {
+      e.preventDefault();
+      const username = document.getElementById('username').value;
+      const password = document.getElementById('password').value;
+      
+      const users = {
+        'dietclerk': { role: 'diet-clerk', page: 'diet-clerk.html' },
+        'admin': { role: 'admin', page: 'admin.html' },
+        'subjectclerk': { role: 'subject-clerk', page: 'subject-clerk.html' },
+        'accountant': { role: 'accountant', page: 'accountant.html' },
+        'kitchen': { role: 'kitchen', page: 'kitchen.html' }
+      };
+
+      if (users[username] && password === 'password123') {
+        alert('Login successful! Redirecting to ' + users[username].role + ' dashboard...');
+        window.location.href = users[username].page;
+      } else {
+        alert('Invalid credentials. Please use the demo credentials provided.');
+      }
+    });
+  </script>
+</body>
+</html>

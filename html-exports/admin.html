@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Panel - Hospital Meal Management</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background-color: #faf8f3;
+      color: #4a4a4a;
+      font-size: 16px;
+      line-height: 1.5;
+      min-height: 100vh;
+    }
+
+    .header {
+      background: white;
+      border-bottom: 1px solid #d9d5ce;
+      padding: 16px 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .header-content h1 {
+      font-size: 24px;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+
+    .header-content p {
+      color: #8b8b8b;
+      font-size: 14px;
+    }
+
+    .logout-btn {
+      background: #d4845c;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 600;
+    }
+
+    .logout-btn:hover {
+      background: #c4744c;
+    }
+
+    .main-container {
+      display: flex;
+      min-height: calc(100vh - 73px);
+    }
+
+    .sidebar {
+      width: 280px;
+      background: white;
+      border-right: 1px solid #d9d5ce;
+      padding: 24px 0;
+    }
+
+    .nav-item {
+      padding: 16px 24px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 16px;
+      font-weight: 500;
+      color: #8b8b8b;
+      transition: all 0.2s;
+    }
+
+    .nav-item:hover {
+      background: #f5f3f0;
+      color: #7a9b7f;
+    }
+
+    .nav-item.active {
+      background: #f0f5f1;
+      color: #7a9b7f;
+      border-right: 3px solid #7a9b7f;
+    }
+
+    .content {
+      flex: 1;
+      padding: 24px;
+    }
+
+    .card {
+      background: white;
+      border-radius: 12px;
+      padding: 24px;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    }
+
+    .card h2 {
+      font-size: 24px;
+      font-weight: 700;
+      margin-bottom: 24px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 24px;
+    }
+
+    th {
+      text-align: left;
+      padding: 12px;
+      background: #f5f3f0;
+      font-weight: 600;
+      border-bottom: 2px solid #d9d5ce;
+    }
+
+    td {
+      padding: 12px;
+      border-bottom: 1px solid #d9d5ce;
+    }
+
+    .btn {
+      padding: 8px 16px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 600;
+      margin-right: 8px;
+    }
+
+    .btn-primary {
+      background: #7a9b7f;
+      color: white;
+    }
+
+    .btn-success {
+      background: #6b9b6f;
+      color: white;
+    }
+
+    .btn-danger {
+      background: #d4845c;
+      color: white;
+    }
+
+    .btn-add {
+      background: #7a9b7f;
+      color: white;
+      padding: 12px 24px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 16px;
+      font-weight: 600;
+      margin-bottom: 24px;
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 4px 12px;
+      border-radius: 12px;
+      font-size: 14px;
+      font-weight: 600;
+    }
+
+    .badge-admin {
+      background: #f0f5f1;
+      color: #4a6b4f;
+    }
+
+    .badge-clerk {
+      background: #f5f0e8;
+      color: #8b6b4f;
+    }
+
+    .badge-active {
+      background: #f0f5f1;
+      color: #4a6b4f;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="header-content">
+      <h1>Admin Panel</h1>
+      <p>System Management & Configuration</p>
+    </div>
+    <button class="logout-btn" onclick="logout()">Logout</button>
+  </div>
+
+  <div class="main-container">
+    <div class="sidebar">
+      <div class="nav-item active" onclick="showTab('users')">
+        <span>👥</span> User Accounts
+      </div>
+      <div class="nav-item" onclick="showTab('wards')">
+        <span>🏥</span> Wards
+      </div>
+      <div class="nav-item" onclick="showTab('diets')">
+        <span>🍽️</span> Diet Types
+      </div>
+      <div class="nav-item" onclick="showTab('ingredients')">
+        <span>🥗</span> Ingredients
+      </div>
+      <div class="nav-item" onclick="showTab('recipes')">
+        <span>📖</span> Recipe Management
+      </div>
+      <div class="nav-item" onclick="showTab('settings')">
+        <span>⚙️</span> System Settings
+      </div>
+    </div>
+
+    <div class="content">
+      <div class="card">
+        <h2>User Accounts</h2>
+        <button class="btn-add">+ Add New User</button>
+        
+        <table>
+          <thead>
+            <tr>
+              <th>Username</th>
+              <th>Full Name</th>
+              <th>Role</th>
+              <th>Email</th>
+              <th>Status</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>admin</td>
+              <td>System Administrator</td>
+              <td><span class="badge badge-admin">Admin</span></td>
+              <td>admin@hospital.com</td>
+              <td><span class="badge badge-active">Active</span></td>
+              <td>
+                <button class="btn btn-primary">Edit</button>
+                <button class="btn btn-danger">Delete</button>
+              </td>
+            </tr>
+            <tr>
+              <td>dietclerk</td>
+              <td>Jane Smith</td>
+              <td><span class="badge badge-clerk">Diet Clerk</span></td>
+              <td>jane@hospital.com</td>
+              <td><span class="badge badge-active">Active</span></td>
+              <td>
+                <button class="btn btn-primary">Edit</button>
+                <button class="btn btn-danger">Delete</button>
+              </td>
+            </tr>
+            <tr>
+              <td>subjectclerk</td>
+              <td>John Doe</td>
+              <td><span class="badge badge-clerk">Subject Clerk</span></td>
+              <td>john@hospital.com</td>
+              <td><span class="badge badge-active">Active</span></td>
+              <td>
+                <button class="btn btn-primary">Edit</button>
+                <button class="btn btn-danger">Delete</button>
+              </td>
+            </tr>
+            <tr>
+              <td>accountant</td>
+              <td>Sarah Johnson</td>
+              <td><span class="badge badge-clerk">Accountant</span></td>
+              <td>sarah@hospital.com</td>
+              <td><span class="badge badge-active">Active</span></td>
+              <td>
+                <button class="btn btn-primary">Edit</button>
+                <button class="btn btn-danger">Delete</button>
+              </td>
+            </tr>
+            <tr>
+              <td>kitchen</td>
+              <td>Kitchen Staff</td>
+              <td><span class="badge badge-clerk">Kitchen</span></td>
+              <td>kitchen@hospital.com</td>
+              <td><span class="badge badge-active">Active</span></td>
+              <td>
+                <button class="btn btn-primary">Edit</button>
+                <button class="btn btn-danger">Delete</button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function logout() {
+      if (confirm('Are you sure you want to logout?')) {
+        window.location.href = 'login.html';
+      }
+    }
+
+    function showTab(tab) {
+      const navItems = document.querySelectorAll('.nav-item');
+      navItems.forEach(item => item.classList.remove('active'));
+      event.target.closest('.nav-item').classList.add('active');
+      
+      alert('Showing ' + tab + ' tab (demo only)');
+    }
+  </script>
+</body>
+</html>
