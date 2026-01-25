@@ -1,11 +1,11 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   typescript: {
-    ignoreBuildErrors: true,
+    ignoreBuildErrors: true, // allows production build even if there are TS errors
   },
   images: {
     unoptimized: true,
   },
 }
 
-export default nextConfig
+module.exports = nextConfig
