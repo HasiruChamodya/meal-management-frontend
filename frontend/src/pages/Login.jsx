@@ -278,7 +278,7 @@ if (remember) {
               className="text-white text-[19px] font-semibold tracking-wide"
               style={{ fontFamily: "'Georgia', serif" }}
             >
-              MealCare
+              Meal Managemt System
             </span>
           </div>
 
@@ -302,9 +302,9 @@ if (remember) {
         {/* Stats row */}
         <div className="relative z-10 px-14 pb-14">
           <div className="border-t border-white/10 pt-9 flex">
-            <StatItem value="98%" label="On-time Delivery" border={false} />
+            {/* <StatItem value="98%" label="On-time Delivery" border={false} />
             <StatItem value="340+" label="Beds Supported" border />
-            <StatItem value="4.9" label="Staff Rating" border />
+            <StatItem value="4.9" label="Staff Rating" border /> */}
           </div>
         </div>
       </div>
