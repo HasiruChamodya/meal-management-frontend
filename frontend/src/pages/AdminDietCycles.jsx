@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useState, useEffect } from "react";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,70 +7,193 @@ import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
-import { DIET_CYCLES } from "@/lib/module-data";
-import { Plus, Edit2 } from "lucide-react";
+import { Plus, Edit2, Trash2 } from "lucide-react";
+
+const API_BASE = "http://localhost:5050/api/diet-cycles";
+
+const getAuthHeaders = () => {
+  const token = sessionStorage.getItem("token");
+  return {
+    "Content-Type": "application/json",
+    Authorization: `Bearer ${token}`,
+  };
+};
 
 const AdminDietCycles = () => {
   const { toast } = useToast();
-  const [cycles, setCycles] = useState([...DIET_CYCLES]);
+  
+  const [cycles, setCycles] = useState([]);
   const [edit, setEdit] = useState(null);
   const [isNew, setIsNew] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
 
-  const save = () => {
-    if (!edit) return;
-    if (isNew) {
-      setCycles((p) => [...p, edit]);
-      toast({ title: "Diet Cycle Added" });
-    } else {
-      setCycles((p) => p.map((c) => (c.id === edit.id ? edit : c)));
-      toast({ title: "Diet Cycle Updated" });
+  const fetchCycles = async () => {
+    try {
+      setLoading(true);
+      const res = await fetch(API_BASE, {
+        headers: getAuthHeaders(),
+      });
+      const data = await res.json();
+
+      if (!res.ok) throw new Error(data.message || "Failed to fetch diet cycles");
+
+      setCycles(data.cycles || []);
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: error.message || "Could not load diet cycles",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
     }
-    setEdit(null);
+  };
+
+  useEffect(() => {
+    fetchCycles();
+  }, []);
+
+  const openNew = () => {
+    setIsNew(true);
+    setEdit({ code: "", nameEn: "", nameSi: "", active: true });
+  };
+
+  const save = async () => {
+    if (!edit) return;
+
+    try {
+      setSaving(true);
+      
+      const payload = {
+        code: edit.code,
+        nameEn: edit.nameEn,
+        nameSi: edit.nameSi,
+        active: edit.active
+      };
+
+      let res;
+      if (isNew) {
+        res = await fetch(API_BASE, {
+          method: "POST",
+          headers: getAuthHeaders(),
+          body: JSON.stringify(payload),
+        });
+      } else {
+        res = await fetch(`${API_BASE}/${edit.id}`, {
+          method: "PUT",
+          headers: getAuthHeaders(),
+          body: JSON.stringify(payload),
+        });
+      }
+
+      const data = await res.json();
+
+      if (!res.ok) throw new Error(data.message || "Save failed");
+
+      toast({
+        title: isNew ? "Diet Cycle Added" : "Diet Cycle Updated",
+        description: data.message,
+      });
+
+      setEdit(null);
+      setIsNew(false);
+      fetchCycles();
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: error.message || "Could not save diet cycle",
+        variant: "destructive",
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const toggleStatus = async (cycle) => {
+    try {
+      const res = await fetch(`${API_BASE}/${cycle.id}/status`, {
+        method: "PATCH",
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ active: !cycle.active }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) throw new Error(data.message || "Status update failed");
+
+      toast({
+        title: "Status Updated",
+        description: data.message,
+      });
+
+      fetchCycles();
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: error.message || "Could not update status",
+        variant: "destructive",
+      });
+    }
   };
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-heading-md font-bold text-foreground">Diet Cycle Management</h1>
-        <Button onClick={() => { 
-          setIsNew(true); 
-          setEdit({ id: String(Date.now()), code: "", nameEn: "", nameSi: "", active: true }); 
-        }}>
+        <Button onClick={openNew}>
           <Plus className="h-4 w-4 mr-2" /> Add Cycle
         </Button>
       </div>
+      
       <Card>
-        <CardContent className="pt-4">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Code</TableHead>
-                <TableHead>Name (EN)</TableHead>
-                <TableHead>Name (SI)</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead></TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {cycles.map((c) => (
-                <TableRow key={c.id}>
-                  <TableCell className="font-medium">{c.code}</TableCell>
-                  <TableCell>{c.nameEn}</TableCell>
-                  <TableCell className="text-muted-foreground">{c.nameSi}</TableCell>
-                  <TableCell>
-                    <Badge className={c.active ? "bg-primary/20 text-primary" : "bg-muted text-muted-foreground"}>
-                      {c.active ? "Active" : "Inactive"}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <Button variant="ghost" size="icon" onClick={() => { setIsNew(false); setEdit(c); }}>
-                      <Edit2 className="h-4 w-4" />
-                    </Button>
-                  </TableCell>
+        <CardContent className="pt-4 overflow-x-auto">
+          {loading ? (
+            <div className="py-6 text-center text-muted-foreground">Loading diet cycles...</div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Code</TableHead>
+                  <TableHead>Name (EN)</TableHead>
+                  <TableHead>Name (SI)</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Actions</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {cycles.map((c) => (
+                  <TableRow key={c.id} className={!c.active ? "opacity-50" : ""}>
+                    <TableCell className="font-medium">{c.code}</TableCell>
+                    <TableCell>{c.nameEn}</TableCell>
+                    <TableCell className="text-muted-foreground">{c.nameSi}</TableCell>
+                    <TableCell>
+                      <Badge className={c.active ? "bg-primary/20 text-primary" : "bg-muted text-muted-foreground"}>
+                        {c.active ? "Active" : "Inactive"}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex gap-1">
+                        <Button variant="ghost" size="icon" onClick={() => { setIsNew(false); setEdit(c); }}>
+                          <Edit2 className="h-4 w-4" />
+                        </Button>
+                        <Button variant="ghost" size="icon" onClick={() => toggleStatus(c)}>
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+                {cycles.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={5} className="text-center text-muted-foreground py-6">
+                      No diet cycles found
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          )}
         </CardContent>
       </Card>
 
@@ -97,7 +220,9 @@ const AdminDietCycles = () => {
           )}
           <DialogFooter>
             <Button variant="outline" onClick={() => setEdit(null)}>Cancel</Button>
-            <Button onClick={save}>Save</Button>
+            <Button onClick={save} disabled={saving}>
+              {saving ? "Saving..." : isNew ? "Add" : "Save"}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

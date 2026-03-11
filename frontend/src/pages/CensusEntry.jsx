@@ -1,9 +1,4 @@
-import React, { useState, useCallback, useMemo, useRef } from "react";
-import {
-  WARDS, DIET_FIELDS, EXTRA_ITEMS,
-  getWardCapacity, getWardCapacityLabel,
-  MOCK_SUBMISSIONS,
-} from "@/lib/ward-data";
+import React, { useState, useCallback, useMemo, useRef, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,18 +7,52 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useToast } from "@/hooks/use-toast";
 import {
-  AlertTriangle, CalendarDays, Check, ChevronDown, ChevronRight,
-  ChevronsUpDown, HelpCircle, Plus, Send,
+  AlertTriangle,
+  CalendarDays,
+  Check,
+  ChevronDown,
+  ChevronRight,
+  ChevronsUpDown,
+  HelpCircle,
+  Plus,
+  Save,
+  Send,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-/* ── helpers ──────────────────────────────────────────────── */
+const API_BASE = "http://localhost:5050/api/census";
+const WARDS_API = "http://localhost:5050/api/wards";
+const ITEMS_API = "http://localhost:5050/api/items";
+const DIET_TYPES_API = "http://localhost:5050/api/diet-types";
+
+const getAuthHeaders = () => {
+  const token = sessionStorage.getItem("token");
+  return {
+    "Content-Type": "application/json",
+    Authorization: `Bearer ${token}`,
+  };
+};
+
 const today = new Date().toISOString().split("T")[0];
 
 const statusConfig = {
@@ -33,190 +62,485 @@ const statusConfig = {
   locked: { label: "Locked", className: "bg-destructive/10 text-destructive" },
 };
 
-/* ── number input component ───────────────────────────────── */
-const NumField = ({ value, onChange, onEnter, inputRef, min = 0, className = "" }) => {
-  const handleKey = (e) => {
+const getDietKey = (diet) => String(diet.code || diet.id);
+
+const NumField = ({ value, onChange, onEnter, inputRef, className = "" }) => {
+  const handleKeyDown = (e) => {
     if (e.key === "Enter") {
       e.preventDefault();
       onEnter?.();
     }
   };
+
   return (
     <Input
       ref={inputRef}
-      type="number"
+      type="text"
       inputMode="numeric"
-      min={min}
-      value={value || ""}
+      value={value ?? ""}
       onChange={(e) => {
-        const v = parseInt(e.target.value, 10);
-        onChange(isNaN(v) ? 0 : Math.max(min, v));
+        const raw = e.target.value;
+        if (/^\d*$/.test(raw)) {
+          onChange(raw);
+        }
       }}
-      onKeyDown={handleKey}
+      onKeyDown={handleKeyDown}
       className={`h-11 text-input text-center w-24 touch-target ${className}`}
     />
   );
 };
 
-/* ── Submission tracker ───────────────────────────────────── */
-const getWardSubmissionStatus = () => {
-  return WARDS.map((w) => {
-    const sub = MOCK_SUBMISSIONS.find((s) => s.wardId === w.id && s.date === today);
-    return {
-      ward: w,
-      status: sub?.status || "not_started",
-      totalPatients: sub?.totalPatients || 0,
-    };
-  });
-};
-
-/* ── main page ────────────────────────────────────────────── */
 const CensusEntryPage = () => {
   const { toast } = useToast();
+
   const [activeTab, setActiveTab] = useState("patients");
 
-  // ward search
+  const [wards, setWards] = useState([]);
+  const [wardStatuses, setWardStatuses] = useState([]);
+  const [extraItemsMaster, setExtraItemsMaster] = useState([]);
+  const [dietTypes, setDietTypes] = useState([]);
+
   const [wardId, setWardId] = useState("");
   const [wardSearchOpen, setWardSearchOpen] = useState(false);
-  const ward = useMemo(() => WARDS.find((w) => w.id === wardId), [wardId]);
-  const capacity = ward ? getWardCapacity(ward) : 0;
 
-  // submission tracker
-  const wardStatuses = useMemo(() => getWardSubmissionStatus(), []);
-  const submittedCount = wardStatuses.filter((w) => w.status === "submitted" || w.status === "locked").length;
-  const submissionPct = Math.round((submittedCount / WARDS.length) * 100);
-
-  // find existing mock
-  const existingEntry = useMemo(
-    () => MOCK_SUBMISSIONS.find((s) => s.wardId === wardId && s.date === today),
-    [wardId]
-  );
-
-  // diets
-  const [diets, setDiets] = useState(() =>
-    Object.fromEntries(DIET_FIELDS.map((f) => [f.key, 0]))
-  );
-  // special
-  const [special, setSpecial] = useState({ soupKanda: 0, polSambola: 0 });
-  // extras
-  const [extras, setExtras] = useState(() =>
-    Object.fromEntries(EXTRA_ITEMS.map((i) => [i.name, 0]))
-  );
-  // custom extras
+  const [diets, setDiets] = useState({});
+  const [special, setSpecial] = useState({ soup: "", kanda: "", polSambola: "" });
+  const [extras, setExtras] = useState({});
   const [customExtras, setCustomExtras] = useState([]);
 
-  // staff meals (separate, not per-ward)
-  const [staffMeals, setStaffMeals] = useState({ breakfast: 0, lunch: 0, dinner: 0 });
+  const [staffMeals, setStaffMeals] = useState({
+    breakfast: "",
+    lunch: "",
+    dinner: "",
+  });
   const [staffSubmitted, setStaffSubmitted] = useState(false);
 
-  // status
   const [status, setStatus] = useState("not_started");
 
-  // UI state
   const [extrasOpen, setExtrasOpen] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [addItemOpen, setAddItemOpen] = useState(false);
-  const [newItem, setNewItem] = useState({ name: "", quantity: 0, unit: "Pcs" });
+  const [loading, setLoading] = useState(true);
+  const [savingDraft, setSavingDraft] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
-  // refs for keyboard navigation
+  const [newItem, setNewItem] = useState({ name: "", quantity: "", unit: "Pcs" });
+
   const inputRefs = useRef([]);
+
   const focusNext = (idx) => {
     const next = inputRefs.current[idx + 1];
     next?.focus();
   };
+
   const registerRef = (idx) => (el) => {
     inputRefs.current[idx] = el;
   };
 
-  // load ward data
-  const handleWardChange = useCallback((id) => {
-    setWardId(id);
-    setWardSearchOpen(false);
-    const entry = MOCK_SUBMISSIONS.find((s) => s.wardId === id && s.date === today);
-    if (entry) {
-      setDiets({ ...Object.fromEntries(DIET_FIELDS.map((f) => [f.key, 0])), ...entry.diets });
-      setSpecial(entry.special);
-      setExtras({ ...Object.fromEntries(EXTRA_ITEMS.map((i) => [i.name, 0])), ...entry.extras });
-      setCustomExtras(entry.customExtras || []);
-      setStatus(entry.status);
-    } else {
-      setDiets(Object.fromEntries(DIET_FIELDS.map((f) => [f.key, 0])));
-      setSpecial({ soupKanda: 0, polSambola: 0 });
-      setExtras(Object.fromEntries(EXTRA_ITEMS.map((i) => [i.name, 0])));
-      setCustomExtras([]);
-      setStatus("not_started");
-    }
-  }, []);
-
-  // totals
-  const totalPatients = useMemo(
-    () => Object.values(diets).reduce((s, v) => s + v, 0),
-    [diets]
+  const ward = useMemo(
+    () => wards.find((w) => String(w.id) === String(wardId)),
+    [wards, wardId]
   );
-  const capacityPercent = capacity > 0 ? Math.min((totalPatients / capacity) * 100, 120) : 0;
+
+  const capacity = ward
+    ? Number(ward.beds || 0) +
+      Number(ward.cots || 0) +
+      Number(ward.icu || 0) +
+      Number(ward.incubators || 0)
+    : 0;
+
+  const submittedCount = wardStatuses.filter(
+    (w) => w.status === "submitted" || w.status === "locked"
+  ).length;
+
+  const submissionPct = wards.length
+    ? Math.round((submittedCount / wards.length) * 100)
+    : 0;
+
+  const totalPatients = useMemo(() => {
+    return Object.values(diets).reduce((sum, value) => sum + (parseInt(value, 10) || 0), 0);
+  }, [diets]);
+
+  const capacityPercent =
+    capacity > 0 ? Math.min((totalPatients / capacity) * 100, 120) : 0;
+
   const overCapacity = totalPatients > capacity && capacity > 0;
 
   const progressColor = overCapacity
     ? "bg-destructive"
     : capacityPercent >= 80
-      ? "bg-warning"
-      : "bg-primary";
+    ? "bg-warning"
+    : "bg-primary";
 
-  // read-only if submitted/locked
   const isReadOnly = status === "submitted" || status === "locked";
 
-  // submit
-  const handleSubmit = () => {
-    setConfirmOpen(false);
-    setStatus("submitted");
-    toast({ title: "Census submitted", description: `${ward?.name} data submitted successfully.` });
-    // Move to next unsubmitted ward
-    const nextWard = WARDS.find((w) => {
-      const sub = MOCK_SUBMISSIONS.find((s) => s.wardId === w.id && s.date === today);
-      return w.id !== wardId && (!sub || sub.status === "not_started");
+  const buildEmptyDiets = useCallback((types) => {
+    return Object.fromEntries((types || []).map((diet) => [getDietKey(diet), ""]));
+  }, []);
+
+  const initExtrasObject = useCallback((itemsList) => {
+    return Object.fromEntries((itemsList || []).map((i) => [i.name, ""]));
+  }, []);
+
+  const normalizeWardStatuses = useCallback((statusesFromApi, wardsSource) => {
+    return (wardsSource || []).map((w) => {
+      const sub = statusesFromApi.find((s) => String(s.wardId) === String(w.id));
+      return {
+        ward: w,
+        status: sub?.status || "not_started",
+        totalPatients: sub?.totalPatients || 0,
+      };
     });
-    if (nextWard) {
-      setTimeout(() => handleWardChange(nextWard.id), 500);
+  }, []);
+
+  const toNumberObject = (obj) =>
+    Object.fromEntries(
+      Object.entries(obj).map(([k, v]) => [k, parseInt(v, 10) || 0])
+    );
+
+  const toCustomExtrasPayload = (items) =>
+    items.map((item) => ({
+      ...item,
+      quantity: parseInt(item.quantity, 10) || 0,
+    }));
+
+  const fetchDietTypes = async () => {
+    const res = await fetch(DIET_TYPES_API, {
+      headers: getAuthHeaders(),
+    });
+    const data = await res.json();
+
+    if (!res.ok) {
+      throw new Error(data.message || "Failed to fetch diet types");
+    }
+
+    return (data.dietTypes || []).map((diet) => ({
+      ...diet,
+      code: diet.code || String(diet.id),
+      nameEn: diet.nameEn || diet.name_en || diet.name || "Unnamed Diet",
+      nameSi: diet.nameSi || diet.name_si || "",
+      tooltip: diet.tooltip || "",
+    }));
+  };
+
+  const fetchWards = async () => {
+    const res = await fetch(WARDS_API, { headers: getAuthHeaders() });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.message || "Failed to fetch wards");
+    return data.wards || [];
+  };
+
+  const fetchStatuses = async () => {
+    const res = await fetch(`${API_BASE}/statuses?date=${today}`, {
+      headers: getAuthHeaders(),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.message || "Failed to fetch ward statuses");
+    return data.statuses || [];
+  };
+
+  const fetchExtraItems = async () => {
+    const res = await fetch(ITEMS_API, { headers: getAuthHeaders() });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.message || "Failed to fetch items");
+
+    return (data.items || []).map((item) => ({
+      id: item.id,
+      name: item.nameEn,
+      unit: item.unit,
+    }));
+  };
+
+  const fetchStaffMeals = async () => {
+    const res = await fetch(`${API_BASE}/staff?date=${today}`, {
+      headers: getAuthHeaders(),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.message || "Failed to fetch staff meals");
+
+    if (data.staffMeals) {
+      setStaffMeals({
+        breakfast: String(data.staffMeals.breakfast ?? ""),
+        lunch: String(data.staffMeals.lunch ?? ""),
+        dinner: String(data.staffMeals.dinner ?? ""),
+      });
+      setStaffSubmitted(data.staffMeals.status === "submitted");
+    } else {
+      setStaffMeals({ breakfast: "", lunch: "", dinner: "" });
+      setStaffSubmitted(false);
     }
   };
 
-  // add custom extra
+  useEffect(() => {
+    const loadInitial = async () => {
+      try {
+        setLoading(true);
+
+        const [wardsData, statusesData, itemsData, dietTypesData] = await Promise.all([
+          fetchWards(),
+          fetchStatuses(),
+          fetchExtraItems(),
+          fetchDietTypes(),
+        ]);
+
+        setWards(wardsData);
+        setExtraItemsMaster(itemsData);
+        setDietTypes(dietTypesData);
+        setExtras(initExtrasObject(itemsData));
+        setDiets(buildEmptyDiets(dietTypesData));
+        setWardStatuses(normalizeWardStatuses(statusesData, wardsData));
+
+        await fetchStaffMeals();
+      } catch (error) {
+        toast({
+          title: "Error",
+          description: error.message || "Failed to load census page",
+          variant: "destructive",
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadInitial();
+  }, [buildEmptyDiets, initExtrasObject, normalizeWardStatuses, toast]);
+
+  const loadWardData = useCallback(
+    async (id) => {
+      try {
+        setWardId(String(id));
+        setWardSearchOpen(false);
+
+        const res = await fetch(`${API_BASE}/ward/${id}?date=${today}`, {
+          headers: getAuthHeaders(),
+        });
+        const data = await res.json();
+
+        if (!res.ok) {
+          throw new Error(data.message || "Failed to fetch ward census");
+        }
+
+        if (data.census) {
+          const normalizedDiets = Object.fromEntries(
+            Object.entries(data.census.diets || {}).map(([k, v]) => [
+              String(k),
+              String(v ?? ""),
+            ])
+          );
+
+          setDiets({
+            ...buildEmptyDiets(dietTypes),
+            ...normalizedDiets,
+          });
+
+          setSpecial({
+            soup: String(data.census.special?.soup ?? ""),
+            kanda: String(data.census.special?.kanda ?? ""),
+            polSambola: String(data.census.special?.polSambola ?? ""),
+          });
+
+          setExtras({
+            ...initExtrasObject(extraItemsMaster),
+            ...Object.fromEntries(
+              Object.entries(data.census.extras || {}).map(([k, v]) => [k, String(v ?? "")])
+            ),
+          });
+
+          setCustomExtras(
+            (data.census.customExtras || []).map((item) => ({
+              ...item,
+              quantity: String(item.quantity ?? ""),
+            }))
+          );
+
+          setStatus(data.census.status || "not_started");
+        } else {
+          setDiets(buildEmptyDiets(dietTypes));
+          setSpecial({ soup: "", kanda: "", polSambola: "" });
+          setExtras(initExtrasObject(extraItemsMaster));
+          setCustomExtras([]);
+          setStatus("not_started");
+        }
+      } catch (error) {
+        toast({
+          title: "Error",
+          description: error.message || "Failed to load ward data",
+          variant: "destructive",
+        });
+      }
+    },
+    [buildEmptyDiets, dietTypes, extraItemsMaster, initExtrasObject, toast]
+  );
+
+  const saveDraft = async () => {
+    if (!wardId) return;
+
+    try {
+      setSavingDraft(true);
+
+      const payload = {
+        wardId,
+        date: today,
+        diets: toNumberObject(diets),
+        special: toNumberObject(special),
+        extras: toNumberObject(extras),
+        customExtras: toCustomExtrasPayload(customExtras),
+      };
+
+      const res = await fetch(`${API_BASE}/draft`, {
+        method: "POST",
+        headers: getAuthHeaders(),
+        body: JSON.stringify(payload),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) throw new Error(data.message || "Failed to save draft");
+
+      setStatus("draft");
+
+      const statusesData = await fetchStatuses();
+      setWardStatuses(normalizeWardStatuses(statusesData, wards));
+
+      toast({
+        title: "Draft Saved",
+        description: `${ward?.name || "Ward"} draft saved successfully.`,
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: error.message || "Could not save draft",
+        variant: "destructive",
+      });
+    } finally {
+      setSavingDraft(false);
+    }
+  };
+
+  const handleSubmit = async () => {
+    if (!wardId) return;
+
+    try {
+      setSubmitting(true);
+
+      const payload = {
+        wardId,
+        date: today,
+        diets: toNumberObject(diets),
+        special: toNumberObject(special),
+        extras: toNumberObject(extras),
+        customExtras: toCustomExtrasPayload(customExtras),
+      };
+
+      const res = await fetch(`${API_BASE}/submit`, {
+        method: "POST",
+        headers: getAuthHeaders(),
+        body: JSON.stringify(payload),
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || "Failed to submit census");
+
+      setConfirmOpen(false);
+      setStatus("submitted");
+
+      const statusesData = await fetchStatuses();
+      const normalized = normalizeWardStatuses(statusesData, wards);
+      setWardStatuses(normalized);
+
+      toast({
+        title: "Census submitted",
+        description: `${ward?.name} data submitted successfully.`,
+      });
+
+      const nextWard = normalized.find(
+        (w) =>
+          String(w.ward.id) !== String(wardId) &&
+          (w.status === "not_started" || w.status === "draft")
+      );
+
+      if (nextWard) {
+        setTimeout(() => loadWardData(nextWard.ward.id), 400);
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: error.message || "Could not submit census",
+        variant: "destructive",
+      });
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   const handleAddCustomItem = () => {
     if (!newItem.name.trim()) return;
-    setCustomExtras((prev) => [...prev, { ...newItem, name: newItem.name.trim() }]);
-    setNewItem({ name: "", quantity: 0, unit: "Pcs" });
+
+    setCustomExtras((prev) => [
+      ...prev,
+      { ...newItem, name: newItem.name.trim() },
+    ]);
+
+    setNewItem({ name: "", quantity: "", unit: "Pcs" });
     setAddItemOpen(false);
   };
 
-  // submit staff meals
-  const handleSubmitStaff = () => {
-    setStaffSubmitted(true);
-    toast({ title: "Staff meals submitted", description: "Staff meal counts saved for today." });
+  const handleSubmitStaff = async () => {
+    try {
+      const res = await fetch(`${API_BASE}/staff/submit`, {
+        method: "POST",
+        headers: getAuthHeaders(),
+        body: JSON.stringify({
+          date: today,
+          breakfast: parseInt(staffMeals.breakfast, 10) || 0,
+          lunch: parseInt(staffMeals.lunch, 10) || 0,
+          dinner: parseInt(staffMeals.dinner, 10) || 0,
+          staffCycle: "Chicken",
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || "Failed to submit staff meals");
+
+      setStaffSubmitted(true);
+
+      toast({
+        title: "Staff meals submitted",
+        description: "Staff meal counts saved for today.",
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: error.message || "Could not submit staff meals",
+        variant: "destructive",
+      });
+    }
   };
 
-  // input index counter
   let refIdx = 0;
 
   return (
     <div className="space-y-4 pb-28 md:pb-6">
       <h1 className="text-heading-lg text-foreground">Census Entry</h1>
 
-      {/* ── Submission Progress Tracker ─────────────────── */}
       <Card>
         <CardContent className="pt-4 space-y-3">
           <div className="flex justify-between items-center">
-            <span className="text-label font-semibold">{submittedCount} / {WARDS.length} wards submitted</span>
+            <span className="text-label font-semibold">
+              {submittedCount} / {wards.length} wards submitted
+            </span>
             <span className="text-label font-semibold text-primary">{submissionPct}%</span>
           </div>
           <Progress value={submissionPct} className="h-3" />
           <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-8 gap-2 mt-3">
             {wardStatuses.map((ws) => {
               const isSubmitted = ws.status === "submitted" || ws.status === "locked";
-              const isActive = ws.ward.id === wardId;
+              const isActive = String(ws.ward.id) === String(wardId);
+
               return (
                 <button
                   key={ws.ward.id}
-                  onClick={() => handleWardChange(ws.ward.id)}
+                  onClick={() => loadWardData(ws.ward.id)}
                   className={cn(
                     "rounded-lg p-2 text-center text-xs border transition-all cursor-pointer",
                     isActive && "ring-2 ring-primary",
@@ -234,16 +558,17 @@ const CensusEntryPage = () => {
         </CardContent>
       </Card>
 
-      {/* ── Tabs ───────────────────────────────────────────── */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="w-full">
-          <TabsTrigger value="patients" className="flex-1 touch-target">Patient Census</TabsTrigger>
-          <TabsTrigger value="staff" className="flex-1 touch-target">Staff Meals</TabsTrigger>
+          <TabsTrigger value="patients" className="flex-1 touch-target">
+            Patient Census
+          </TabsTrigger>
+          <TabsTrigger value="staff" className="flex-1 touch-target">
+            Staff Meals
+          </TabsTrigger>
         </TabsList>
 
-        {/* ── Tab 1: Patient Census ──────────────────────── */}
         <TabsContent value="patients" className="space-y-4 mt-4">
-          {/* Ward Selector - Searchable Combobox */}
           <Card>
             <CardContent className="pt-5 space-y-3">
               <div className="flex flex-col sm:flex-row sm:items-end gap-3">
@@ -251,28 +576,40 @@ const CensusEntryPage = () => {
                   <Label className="text-label font-semibold">Select Ward</Label>
                   <Popover open={wardSearchOpen} onOpenChange={setWardSearchOpen}>
                     <PopoverTrigger asChild>
-                      <Button variant="outline" role="combobox" aria-expanded={wardSearchOpen} className="w-full justify-between h-12 text-input touch-target">
+                      <Button
+                        variant="outline"
+                        role="combobox"
+                        aria-expanded={wardSearchOpen}
+                        className="w-full justify-between h-12 text-input touch-target"
+                      >
                         {ward ? `${ward.name} (${ward.code})` : "Search or select a ward…"}
                         <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                       </Button>
                     </PopoverTrigger>
+
                     <PopoverContent className="w-full p-0" align="start">
                       <Command>
-                        <CommandInput placeholder="Search by name, code, or WD number…" />
+                        <CommandInput placeholder="Search by ward name…" />
                         <CommandList>
                           <CommandEmpty>No ward found.</CommandEmpty>
                           <CommandGroup>
-                            {WARDS.map((w) => (
+                            {wards.map((w) => (
                               <CommandItem
                                 key={w.id}
-                                value={`${w.name} ${w.code} ${w.id}`}
-                                onSelect={() => handleWardChange(w.id)}
+                                value={`${w.name} ${w.code}`}
+                                onSelect={() => loadWardData(w.id)}
                                 className="text-body"
                               >
-                                <Check className={cn("mr-2 h-4 w-4", wardId === w.id ? "opacity-100" : "opacity-0")} />
+                                <Check
+                                  className={cn(
+                                    "mr-2 h-4 w-4",
+                                    String(wardId) === String(w.id) ? "opacity-100" : "opacity-0"
+                                  )}
+                                />
                                 <span className="font-medium">{w.name}</span>
-                                <span className="ml-2 text-muted-foreground text-sm">({w.code})</span>
-                                <span className="ml-auto text-xs text-muted-foreground">{getWardCapacityLabel(w)}</span>
+                                <span className="ml-2 text-muted-foreground text-sm">
+                                  ({w.code})
+                                </span>
                               </CommandItem>
                             ))}
                           </CommandGroup>
@@ -281,11 +618,17 @@ const CensusEntryPage = () => {
                     </PopoverContent>
                   </Popover>
                 </div>
+
                 <div className="flex items-center gap-2">
                   <Badge variant="outline" className="h-8 gap-1.5 text-xs">
                     <CalendarDays className="h-3.5 w-3.5" />
-                    {new Date().toLocaleDateString("en-LK", { year: "numeric", month: "short", day: "numeric" })}
+                    {new Date().toLocaleDateString("en-LK", {
+                      year: "numeric",
+                      month: "short",
+                      day: "numeric",
+                    })}
                   </Badge>
+
                   {ward && (
                     <Badge className={statusConfig[status].className + " h-8 text-xs"}>
                       {statusConfig[status].label}
@@ -293,10 +636,9 @@ const CensusEntryPage = () => {
                   )}
                 </div>
               </div>
+
               {ward && (
-                <p className="text-label text-muted-foreground">
-                  Capacity: {getWardCapacityLabel(ward)}
-                </p>
+                <p className="text-label text-muted-foreground">Capacity: {capacity}</p>
               )}
             </CardContent>
           </Card>
@@ -304,18 +646,18 @@ const CensusEntryPage = () => {
           {!ward && (
             <Card>
               <CardContent className="py-16 text-center text-muted-foreground">
-                Select a ward above to begin entering census data.
+                {loading ? "Loading wards..." : "Select a ward above to begin entering census data."}
               </CardContent>
             </Card>
           )}
 
           {ward && (
             <>
-              {/* Patient Counts */}
               <Card>
                 <CardHeader className="pb-2">
                   <CardTitle className="text-heading-sm">Patient Counts</CardTitle>
                 </CardHeader>
+
                 <CardContent className="space-y-4">
                   {overCapacity && (
                     <div className="flex items-center gap-2 rounded-lg bg-error-bg border border-destructive/30 px-4 py-3 text-destructive text-sm font-medium">
@@ -325,24 +667,33 @@ const CensusEntryPage = () => {
                   )}
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-3">
-                    {DIET_FIELDS.map((field) => {
+                    {dietTypes.map((diet) => {
                       const idx = refIdx++;
+                      const dietKey = getDietKey(diet);
+
                       return (
-                        <div key={field.key} className="flex items-center justify-between gap-3">
+                        <div key={dietKey} className="flex items-center justify-between gap-3">
                           <div className="flex items-center gap-1.5">
-                            <Label className="text-label font-semibold">{field.label}</Label>
-                            {field.tooltip && (
+                            <Label className="text-label font-semibold">{diet.nameEn}</Label>
+                            {diet.tooltip && (
                               <Tooltip>
                                 <TooltipTrigger asChild>
                                   <HelpCircle className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
                                 </TooltipTrigger>
-                                <TooltipContent side="top">{field.tooltip}</TooltipContent>
+                                <TooltipContent side="top">{diet.tooltip}</TooltipContent>
                               </Tooltip>
                             )}
                           </div>
+
                           <NumField
-                            value={diets[field.key] || 0}
-                            onChange={(v) => !isReadOnly && setDiets((d) => ({ ...d, [field.key]: v }))}
+                            value={diets[dietKey] ?? ""}
+                            onChange={(v) => {
+                              if (isReadOnly) return;
+                              setDiets((prev) => ({
+                                ...prev,
+                                [dietKey]: v,
+                              }));
+                            }}
                             onEnter={() => focusNext(idx)}
                             inputRef={registerRef(idx)}
                           />
@@ -351,14 +702,18 @@ const CensusEntryPage = () => {
                     })}
                   </div>
 
-                  {/* Total + progress */}
                   <div className="pt-3 border-t space-y-2">
                     <div className="flex items-baseline justify-between">
                       <span className="text-body font-bold text-foreground">Total Patients</span>
-                      <span className={`text-heading-sm font-bold ${overCapacity ? "text-destructive" : "text-primary"}`}>
+                      <span
+                        className={`text-heading-sm font-bold ${
+                          overCapacity ? "text-destructive" : "text-primary"
+                        }`}
+                      >
                         {totalPatients} / {capacity}
                       </span>
                     </div>
+
                     <div className="relative h-3 bg-muted rounded-full overflow-hidden">
                       <div
                         className={`absolute inset-y-0 left-0 rounded-full transition-all duration-300 ${progressColor}`}
@@ -369,15 +724,16 @@ const CensusEntryPage = () => {
                 </CardContent>
               </Card>
 
-              {/* Special Requests */}
               <Card>
                 <CardHeader className="pb-2">
                   <CardTitle className="text-heading-sm">Special Requests</CardTitle>
                 </CardHeader>
+
                 <CardContent>
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-3 gap-4">
                     {[
-                      { key: "soupKanda", label: "Soup / Kanda" },
+                      { key: "soup", label: "Soup" },
+                      { key: "kanda", label: "Kanda" },
                       { key: "polSambola", label: "Pol Sambola" },
                     ].map((item) => {
                       const idx = refIdx++;
@@ -385,8 +741,14 @@ const CensusEntryPage = () => {
                         <div key={item.key} className="space-y-1.5">
                           <Label className="text-label font-semibold">{item.label}</Label>
                           <NumField
-                            value={special[item.key]}
-                            onChange={(v) => !isReadOnly && setSpecial((s) => ({ ...s, [item.key]: v }))}
+                            value={special[item.key] ?? ""}
+                            onChange={(v) =>
+                              !isReadOnly &&
+                              setSpecial((s) => ({
+                                ...s,
+                                [item.key]: v,
+                              }))
+                            }
                             onEnter={() => focusNext(idx)}
                             inputRef={registerRef(idx)}
                           />
@@ -397,17 +759,21 @@ const CensusEntryPage = () => {
                 </CardContent>
               </Card>
 
-              {/* Extra Items (collapsible) */}
               <Collapsible open={extrasOpen} onOpenChange={setExtrasOpen}>
                 <Card>
                   <CollapsibleTrigger asChild>
                     <CardHeader className="cursor-pointer hover:bg-muted/50 transition-colors rounded-t-lg pb-3">
                       <div className="flex items-center justify-between">
                         <CardTitle className="text-heading-sm">Extra Items</CardTitle>
-                        {extrasOpen ? <ChevronDown className="h-5 w-5 text-muted-foreground" /> : <ChevronRight className="h-5 w-5 text-muted-foreground" />}
+                        {extrasOpen ? (
+                          <ChevronDown className="h-5 w-5 text-muted-foreground" />
+                        ) : (
+                          <ChevronRight className="h-5 w-5 text-muted-foreground" />
+                        )}
                       </div>
                     </CardHeader>
                   </CollapsibleTrigger>
+
                   <CollapsibleContent>
                     <CardContent className="pt-0">
                       <div className="border rounded-lg overflow-hidden">
@@ -416,39 +782,60 @@ const CensusEntryPage = () => {
                           <span className="text-center">Qty</span>
                           <span className="text-center">Unit</span>
                         </div>
-                        {EXTRA_ITEMS.map((item) => {
+
+                        {extraItemsMaster.map((item) => {
                           const idx = refIdx++;
                           return (
-                            <div key={item.name} className="grid grid-cols-[1fr_100px_60px] gap-2 px-4 py-2 border-t items-center">
+                            <div
+                              key={item.id}
+                              className="grid grid-cols-[1fr_100px_60px] gap-2 px-4 py-2 border-t items-center"
+                            >
                               <span className="text-body">{item.name}</span>
                               <NumField
-                                value={extras[item.name] || 0}
-                                onChange={(v) => !isReadOnly && setExtras((e) => ({ ...e, [item.name]: v }))}
+                                value={extras[item.name] ?? ""}
+                                onChange={(v) =>
+                                  !isReadOnly &&
+                                  setExtras((e) => ({
+                                    ...e,
+                                    [item.name]: v,
+                                  }))
+                                }
                                 onEnter={() => focusNext(idx)}
                                 inputRef={registerRef(idx)}
                                 className="w-full"
                               />
-                              <span className="text-label text-muted-foreground text-center">{item.unit}</span>
+                              <span className="text-label text-muted-foreground text-center">
+                                {item.unit}
+                              </span>
                             </div>
                           );
                         })}
+
                         {customExtras.map((item, i) => (
-                          <div key={`custom-${i}`} className="grid grid-cols-[1fr_100px_60px] gap-2 px-4 py-2 border-t items-center bg-accent/30">
+                          <div
+                            key={`custom-${i}`}
+                            className="grid grid-cols-[1fr_100px_60px] gap-2 px-4 py-2 border-t items-center bg-accent/30"
+                          >
                             <span className="text-body">{item.name}</span>
                             <NumField
-                              value={item.quantity}
+                              value={item.quantity ?? ""}
                               onChange={(v) =>
                                 !isReadOnly &&
                                 setCustomExtras((prev) =>
-                                  prev.map((ce, j) => (j === i ? { ...ce, quantity: v } : ce))
+                                  prev.map((ce, j) =>
+                                    j === i ? { ...ce, quantity: v } : ce
+                                  )
                                 )
                               }
                               className="w-full"
                             />
-                            <span className="text-label text-muted-foreground text-center">{item.unit}</span>
+                            <span className="text-label text-muted-foreground text-center">
+                              {item.unit}
+                            </span>
                           </div>
                         ))}
                       </div>
+
                       {!isReadOnly && (
                         <Button
                           variant="outline"
@@ -456,7 +843,8 @@ const CensusEntryPage = () => {
                           className="mt-3 touch-target"
                           onClick={() => setAddItemOpen(true)}
                         >
-                          <Plus className="h-4 w-4 mr-1" /> Add Custom Item
+                          <Plus className="h-4 w-4 mr-1" />
+                          Add Custom Item
                         </Button>
                       )}
                     </CardContent>
@@ -464,15 +852,25 @@ const CensusEntryPage = () => {
                 </Card>
               </Collapsible>
 
-              {/* Sticky Bottom Bar — Submit only */}
               {!isReadOnly && (
                 <div className="fixed bottom-0 left-0 right-0 md:static bg-card border-t md:border-0 p-4 md:p-0 flex gap-3 z-30">
                   <Button
+                    variant="outline"
+                    className="h-12 touch-target"
+                    disabled={!wardId || savingDraft}
+                    onClick={saveDraft}
+                  >
+                    <Save className="h-4 w-4 mr-2" />
+                    {savingDraft ? "Saving..." : "Save Draft"}
+                  </Button>
+
+                  <Button
                     className="flex-1 md:flex-none h-12 touch-target text-body font-semibold"
-                    disabled={overCapacity || totalPatients === 0}
+                    disabled={overCapacity || totalPatients === 0 || submitting}
                     onClick={() => setConfirmOpen(true)}
                   >
-                    <Send className="h-4 w-4 mr-2" /> Submit Ward Data
+                    <Send className="h-4 w-4 mr-2" />
+                    {submitting ? "Submitting..." : "Submit Ward Data"}
                   </Button>
                 </div>
               )}
@@ -486,7 +884,6 @@ const CensusEntryPage = () => {
           )}
         </TabsContent>
 
-        {/* ── Tab 2: Staff Meals ──────────────────────────── */}
         <TabsContent value="staff" className="space-y-4 mt-4">
           <Card>
             <CardHeader>
@@ -495,19 +892,24 @@ const CensusEntryPage = () => {
                 Enter total staff meal counts (not per-ward).
               </p>
             </CardHeader>
+
             <CardContent className="space-y-6">
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
                 {["breakfast", "lunch", "dinner"].map((meal) => (
                   <div key={meal} className="space-y-2 text-center">
-                    <Label className="text-label font-semibold capitalize text-lg">{meal}</Label>
-                    <Input
-                      type="number"
-                      inputMode="numeric"
-                      min={0}
-                      value={staffMeals[meal] || ""}
-                      onChange={(e) => !staffSubmitted && setStaffMeals((s) => ({ ...s, [meal]: parseInt(e.target.value, 10) || 0 }))}
-                      className="h-14 text-2xl text-center touch-target font-bold"
-                      disabled={staffSubmitted}
+                    <Label className="text-label font-semibold capitalize text-lg">
+                      {meal}
+                    </Label>
+                    <NumField
+                      value={staffMeals[meal] ?? ""}
+                      onChange={(v) =>
+                        !staffSubmitted &&
+                        setStaffMeals((s) => ({
+                          ...s,
+                          [meal]: v,
+                        }))
+                      }
+                      className="h-14 text-2xl text-center touch-target font-bold w-full"
                     />
                   </div>
                 ))}
@@ -521,15 +923,21 @@ const CensusEntryPage = () => {
 
               {staffSubmitted ? (
                 <div className="rounded-lg bg-accent border border-primary/20 px-4 py-3 text-sm font-medium text-accent-foreground">
-                  ✅ Staff meals submitted at {new Date().toLocaleTimeString("en-LK", { hour: "2-digit", minute: "2-digit" })} by you.
+                  ✅ Staff meals submitted for today.
                 </div>
               ) : (
                 <Button
                   className="h-12 px-8 touch-target text-body font-semibold"
                   onClick={handleSubmitStaff}
-                  disabled={staffMeals.breakfast + staffMeals.lunch + staffMeals.dinner === 0}
+                  disabled={
+                    (parseInt(staffMeals.breakfast, 10) || 0) +
+                      (parseInt(staffMeals.lunch, 10) || 0) +
+                      (parseInt(staffMeals.dinner, 10) || 0) ===
+                    0
+                  }
                 >
-                  <Send className="h-4 w-4 mr-2" /> Submit Staff Meals
+                  <Send className="h-4 w-4 mr-2" />
+                  Submit Staff Meals
                 </Button>
               )}
             </CardContent>
@@ -537,7 +945,6 @@ const CensusEntryPage = () => {
         </TabsContent>
       </Tabs>
 
-      {/* ── Confirm Dialog ─────────────────────────────── */}
       <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
         <DialogContent>
           <DialogHeader>
@@ -546,8 +953,13 @@ const CensusEntryPage = () => {
               Once submitted, {ward?.name}'s data will be locked for today. Continue?
             </DialogDescription>
           </DialogHeader>
+
           <DialogFooter className="gap-2">
-            <Button variant="outline" onClick={() => setConfirmOpen(false)} className="touch-target">
+            <Button
+              variant="outline"
+              onClick={() => setConfirmOpen(false)}
+              className="touch-target"
+            >
               Cancel
             </Button>
             <Button onClick={handleSubmit} className="touch-target">
@@ -557,12 +969,12 @@ const CensusEntryPage = () => {
         </DialogContent>
       </Dialog>
 
-      {/* ── Add Custom Item Dialog ─────────────────────── */}
       <Dialog open={addItemOpen} onOpenChange={setAddItemOpen}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Add Custom Extra Item</DialogTitle>
           </DialogHeader>
+
           <div className="space-y-4">
             <div className="space-y-1.5">
               <Label className="text-label font-semibold">Item Name</Label>
@@ -573,18 +985,17 @@ const CensusEntryPage = () => {
                 placeholder="Enter item name"
               />
             </div>
+
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <Label className="text-label font-semibold">Quantity</Label>
-                <Input
-                  type="number"
-                  inputMode="numeric"
-                  min={0}
-                  value={newItem.quantity || ""}
-                  onChange={(e) => setNewItem((n) => ({ ...n, quantity: parseInt(e.target.value, 10) || 0 }))}
-                  className="h-11 text-input"
+                <NumField
+                  value={newItem.quantity ?? ""}
+                  onChange={(v) => setNewItem((n) => ({ ...n, quantity: v }))}
+                  className="w-full"
                 />
               </div>
+
               <div className="space-y-1.5">
                 <Label className="text-label font-semibold">Unit</Label>
                 <Popover>
@@ -596,16 +1007,37 @@ const CensusEntryPage = () => {
                   </PopoverTrigger>
                   <PopoverContent className="w-32 p-1">
                     {["Pcs", "g", "kg", "ml", "L", "Fruit"].map((u) => (
-                      <Button key={u} variant="ghost" size="sm" className="w-full justify-start" onClick={() => setNewItem((n) => ({ ...n, unit: u }))}>{u}</Button>
+                      <Button
+                        key={u}
+                        variant="ghost"
+                        size="sm"
+                        className="w-full justify-start"
+                        onClick={() => setNewItem((n) => ({ ...n, unit: u }))}
+                      >
+                        {u}
+                      </Button>
                     ))}
                   </PopoverContent>
                 </Popover>
               </div>
             </div>
           </div>
+
           <DialogFooter className="gap-2 mt-2">
-            <Button variant="outline" onClick={() => setAddItemOpen(false)} className="touch-target">Cancel</Button>
-            <Button onClick={handleAddCustomItem} disabled={!newItem.name.trim()} className="touch-target">Add Item</Button>
+            <Button
+              variant="outline"
+              onClick={() => setAddItemOpen(false)}
+              className="touch-target"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleAddCustomItem}
+              disabled={!newItem.name.trim()}
+              className="touch-target"
+            >
+              Add Item
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

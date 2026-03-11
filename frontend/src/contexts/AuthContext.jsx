@@ -1,46 +1,59 @@
-import React, { createContext, useContext, useState, useCallback, useEffect } from "react";
-import { MOCK_USERS } from "@/lib/constants";
+import React, { createContext, useContext, useMemo, useState, useEffect } from "react";
+import { jwtDecode } from "jwt-decode";
 
-const AuthContext = createContext(undefined);
+const AuthContext = createContext(null);
 
 export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(() => {
-    const stored = localStorage.getItem("mealflow_user");
-    return stored ? JSON.parse(stored) : null;
-  });
+  const [token, setToken] = useState(sessionStorage.getItem("token"));
+  const [user, setUser] = useState(null);
 
   useEffect(() => {
-    if (user) {
-      localStorage.setItem("mealflow_user", JSON.stringify(user));
-    } else {
-      localStorage.removeItem("mealflow_user");
+    if (!token) {
+      setUser(null);
+      return;
     }
-  }, [user]);
 
-  const login = useCallback((role) => {
-    const mockUser = MOCK_USERS.find((u) => u.role === role);
-    if (mockUser) setUser(mockUser);
-  }, []);
+    try {
+      const decoded = jwtDecode(token);
 
-  const logout = useCallback(() => {
-    setUser(null);
-  }, []);
+      setUser({
+        id: decoded.id,
+        name: decoded.name,
+        email: decoded.email,
+        role: decoded.role,
+      });
 
-  return (
-    <AuthContext.Provider value={{ user, login, logout, isAuthenticated: !!user }}>
-      {children}
-    </AuthContext.Provider>
+    } catch (err) {
+      console.error("Invalid token", err);
+      sessionStorage.removeItem("token");
+      setToken(null);
+    }
+  }, [token]);
+
+  const value = useMemo(
+    () => ({
+      user,
+      token,
+
+      login: (jwtToken) => {
+        sessionStorage.setItem("token", jwtToken);
+        setToken(jwtToken);
+      },
+
+      logout: () => {
+        sessionStorage.removeItem("token");
+        setToken(null);
+        setUser(null);
+      },
+    }),
+    [user, token]
   );
-};
 
-const defaultAuthContext = {
-  user: null,
-  login: () => {},
-  logout: () => {},
-  isAuthenticated: false,
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
 
 export const useAuth = () => {
-  const context = useContext(AuthContext);
-  return context ?? defaultAuthContext;
+  const ctx = useContext(AuthContext);
+  if (!ctx) throw new Error("useAuth must be used within AuthProvider");
+  return ctx;
 };
