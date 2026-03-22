@@ -39,10 +39,10 @@ const AppSidebar = () => {
         {!collapsed && (
           <div className="flex flex-col min-w-0">
             <span className="text-sm font-bold text-sidebar-foreground truncate">
-              MealFlow
+              Meal Management
             </span>
             <span className="text-[10px] text-sidebar-foreground/60 truncate">
-              Hospital Meals
+              DGH Gampaha
             </span>
           </div>
         )}
