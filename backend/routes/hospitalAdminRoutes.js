@@ -5,7 +5,7 @@ const { requireAuth, requireRole } = require("../middleware/authMiddleware");
 const wards = require("../controllers/wardsController");
 const diet = require("../controllers/dietConfigController");
 const ing = require("../controllers/ingredientsController");
-const norms = require("../controllers/normWeightsController");
+const norms = require("../controllers/normWeightController");
 const frac = require("../controllers/fractionalFormulasController");
 const cats = require("../controllers/categoriesController");
 
