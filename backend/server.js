@@ -11,10 +11,13 @@ const wardsRoutes = require("./routes/wardsRoutes");
 const { auditRequestMiddleware } = require("./middleware/auditRequestMiddleware");
 const dietPlansRoutes = require("./routes/dietPlansRoutes");
 const censusRoutes = require("./routes/censusRoutes");
-
+const calculationRoutes = require("./routes/calculationRoutes");
+const dailyCycleRoutes = require("./routes/dailyCycleRoutes");
+const normWeightRoutes = require("./routes/normalWeightRoutes");
 const recipesRoutes = require("./routes/recipesRoutes");
 const dietCycleRoutes = require("./routes/dietCycleRoutes");
-const dietTypeRoutes = require("./routes/dietTypeRoutes");
+const dietTypeRoutes = require("./routes/dietTypesRoutes");
+const poRoutes = require("./routes/poRoutes");
 
 const itemsRoutes = require("./routes/itemsRoutes");
 
@@ -37,18 +40,23 @@ app.use(auditRequestMiddleware);
 app.use("/api/auth", authRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/audit", auditRoutes);
-app.use("/api", hospitalAdminRoutes);
+
+//-------------------------------------------------------------------------
 app.use("/api/wards", wardsRoutes);
 app.use("/api/diet-plans", dietPlansRoutes);
 app.use("/api/census", censusRoutes);
+app.use("/api/calculations", calculationRoutes);
+app.use("/api/daily-cycle", dailyCycleRoutes);
 app.use("/api/diet-cycles", dietCycleRoutes);
-
-
+app.use("/api/norm-weights", normWeightRoutes);
 app.use("/api/items", itemsRoutes);
 app.use("/api/diet-types", dietTypeRoutes);
-
-
 app.use("/api/recipes", recipesRoutes);
+app.use("/api/orders", poRoutes);
+
+//-------------------------------------------------------------------------
+app.use("/api", hospitalAdminRoutes);
+
 
 // quick health check
 app.get("/health", (req, res) => res.json({ ok: true }));
