@@ -1,36 +1,91 @@
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { MOCK_PENDING } from "@/lib/module-data";
-import { Clock, CheckCircle2, DollarSign, Wallet } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { Clock, CheckCircle2, Loader2 } from "lucide-react";
+
+const API_BASE = "http://localhost:5050/api";
+
+const getAuthHeaders = () => ({
+  "Content-Type": "application/json",
+  Authorization: `Bearer ${sessionStorage.getItem("token")}`,
+});
 
 const Approvals = () => {
   const navigate = useNavigate();
-  const stats = [
-    { label: "Pending", value: 3, icon: Clock, color: "text-warning", bg: "bg-warning/10" },
-    { label: "Approved Today", value: 1, icon: CheckCircle2, color: "text-primary", bg: "bg-primary/10" },
-    { label: "Total This Week", value: "Rs. 42,500", icon: DollarSign, color: "text-badge-hospital", bg: "bg-badge-hospital/10" },
-    { label: "Budget Remaining", value: "Rs. 157,500", icon: Wallet, color: "text-muted-foreground", bg: "bg-muted" },
-  ];
+  const { toast } = useToast();
+
+  const [pendingOrders, setPendingOrders] = useState([]);
+  const [recentApproved, setRecentApproved] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const [pendingRes, allRes] = await Promise.all([
+          fetch(`${API_BASE}/orders/pending`, { headers: getAuthHeaders() }),
+          fetch(`${API_BASE}/orders?status=approved`, { headers: getAuthHeaders() }),
+        ]);
+
+        const pendingData = await pendingRes.json();
+        const allData = await allRes.json();
+
+        if (!pendingRes.ok) throw new Error(pendingData.message);
+
+        setPendingOrders(pendingData.orders || []);
+        setRecentApproved((allData.orders || []).slice(0, 5));
+      } catch (error) {
+        toast({ title: "Error", description: error.message, variant: "destructive" });
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchData();
+  }, [toast]);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <span className="ml-3 text-muted-foreground">Loading approvals...</span>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
       <h1 className="text-heading-md font-bold text-foreground">Pending Approvals</h1>
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        {stats.map((s) => (
-          <Card key={s.label}>
-            <CardContent className="pt-4 pb-4 flex items-center gap-3">
-              <div className={`p-2 rounded-lg ${s.bg}`}><s.icon className={`h-5 w-5 ${s.color}`} /></div>
-              <div>
-                <p className="text-xs text-muted-foreground">{s.label}</p>
-                <p className={`text-lg font-bold ${s.color}`}>{s.value}</p>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
+
+      {/* Stats */}
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+        <Card>
+          <CardContent className="pt-4 pb-4 flex items-center gap-3">
+            <div className="p-2 rounded-lg bg-warning/10">
+              <Clock className="h-5 w-5 text-warning" />
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">Pending</p>
+              <p className="text-lg font-bold text-warning">{pendingOrders.length}</p>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-4 pb-4 flex items-center gap-3">
+            <div className="p-2 rounded-lg bg-primary/10">
+              <CheckCircle2 className="h-5 w-5 text-primary" />
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">Recently Approved</p>
+              <p className="text-lg font-bold text-primary">{recentApproved.length}</p>
+            </div>
+          </CardContent>
+        </Card>
       </div>
+
+      {/* Pending POs table */}
       <Card>
         <CardContent className="pt-4">
           <Table>
@@ -40,19 +95,23 @@ const Approvals = () => {
                 <TableHead>Bill #</TableHead>
                 <TableHead className="hidden md:table-cell">Submitted By</TableHead>
                 <TableHead className="text-right">Items</TableHead>
-                <TableHead className="text-right hidden sm:table-cell">Original Total</TableHead>
+                <TableHead className="text-right hidden sm:table-cell">Total (Rs)</TableHead>
                 <TableHead>Price Changes</TableHead>
                 <TableHead></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {MOCK_PENDING.map((p) => (
+              {pendingOrders.map((p) => (
                 <TableRow key={p.id}>
                   <TableCell>{p.date}</TableCell>
-                  <TableCell className="font-medium">{p.billNo}</TableCell>
-                  <TableCell className="hidden md:table-cell">{p.submittedBy}</TableCell>
+                  <TableCell className="font-medium">{p.billNumber}</TableCell>
+                  <TableCell className="hidden md:table-cell text-muted-foreground">
+                    {p.submittedByName || p.createdByName || "—"}
+                  </TableCell>
                   <TableCell className="text-right">{p.itemCount}</TableCell>
-                  <TableCell className="text-right hidden sm:table-cell font-semibold">Rs. {p.originalTotal.toLocaleString()}</TableCell>
+                  <TableCell className="text-right hidden sm:table-cell font-semibold">
+                    Rs. {p.originalTotal.toLocaleString()}
+                  </TableCell>
                   <TableCell>
                     {p.priceChanges > 0 ? (
                       <Badge className="bg-warning/20 text-warning">{p.priceChanges} changes</Badge>
@@ -61,10 +120,19 @@ const Approvals = () => {
                     )}
                   </TableCell>
                   <TableCell>
-                    <Button size="sm" onClick={() => navigate(`/approvals/${p.id}`)}>Review</Button>
+                    <Button size="sm" onClick={() => navigate(`/approvals/${p.id}`)}>
+                      Review
+                    </Button>
                   </TableCell>
                 </TableRow>
               ))}
+              {pendingOrders.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
+                    No pending approvals
+                  </TableCell>
+                </TableRow>
+              )}
             </TableBody>
           </Table>
         </CardContent>

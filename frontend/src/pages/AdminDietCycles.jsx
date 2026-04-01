@@ -7,7 +7,8 @@ import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Edit2, Trash2 } from "lucide-react";
+// 👇 Removed Trash2 and added CheckCircle and Ban for better UX
+import { Plus, Edit2, Ban, CheckCircle } from "lucide-react";
 
 const API_BASE = "http://localhost:5050/api/diet-cycles";
 
@@ -17,6 +18,12 @@ const getAuthHeaders = () => {
     "Content-Type": "application/json",
     Authorization: `Bearer ${token}`,
   };
+};
+
+// 👇 Added rich theme colors for consistency
+const STATUS_STYLE = {
+  active: "bg-success text-success-foreground hover:bg-success border-transparent font-medium",
+  inactive: "bg-error-bg text-destructive hover:bg-error-bg border-transparent font-medium",
 };
 
 const AdminDietCycles = () => {
@@ -137,6 +144,13 @@ const AdminDietCycles = () => {
     }
   };
 
+  // 👇 Sort cycles: Active at the top, Inactive at the bottom
+  const sortedCycles = [...cycles].sort((a, b) => {
+    if (a.active && !b.active) return -1;
+    if (!a.active && b.active) return 1;
+    return 0;
+  });
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -153,32 +167,56 @@ const AdminDietCycles = () => {
           ) : (
             <Table>
               <TableHeader>
-                <TableRow>
-                  <TableHead>Code</TableHead>
-                  <TableHead>Name (EN)</TableHead>
-                  <TableHead>Name (SI)</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Actions</TableHead>
+                <TableRow className="text-lg">
+                  <TableHead className="font-semibold text-foreground text-center">Code</TableHead>
+                  <TableHead className="font-semibold text-foreground text-center">Name (EN)</TableHead>
+                  <TableHead className="font-semibold text-foreground text-center">Name (SI)</TableHead>
+                  <TableHead className="font-semibold text-foreground text-center">Status</TableHead>
+                  <TableHead className="font-semibold text-foreground text-center">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {cycles.map((c) => (
-                  <TableRow key={c.id} className={!c.active ? "opacity-50" : ""}>
-                    <TableCell className="font-medium">{c.code}</TableCell>
-                    <TableCell>{c.nameEn}</TableCell>
-                    <TableCell className="text-muted-foreground">{c.nameSi}</TableCell>
-                    <TableCell>
-                      <Badge className={c.active ? "bg-primary/20 text-primary" : "bg-muted text-muted-foreground"}>
+                {/* 👇 Mapped over sortedCycles */}
+                {sortedCycles.map((c) => (
+                  <TableRow 
+                    key={c.id} 
+                    className={`text-lg hover:bg-muted/50 transition-colors cursor-pointer ${!c.active ? "opacity-60" : ""}`}
+                  >
+                    <TableCell className="font-medium py-5 text-center">{c.code}</TableCell>
+                    <TableCell className="py-5 text-center">{c.nameEn}</TableCell>
+                    <TableCell className="text-muted-foreground py-5 text-center">{c.nameSi}</TableCell>
+                    <TableCell className="py-5 text-center">
+                      <Badge 
+                        className={`text-base px-3 py-1 ${
+                          c.active ? STATUS_STYLE.active : STATUS_STYLE.inactive
+                        }`}
+                      >
                         {c.active ? "Active" : "Inactive"}
                       </Badge>
                     </TableCell>
-                    <TableCell>
-                      <div className="flex gap-1">
-                        <Button variant="ghost" size="icon" onClick={() => { setIsNew(false); setEdit(c); }}>
-                          <Edit2 className="h-4 w-4" />
+                    <TableCell className="py-5">
+                      <div className="flex justify-center gap-2">
+                        <Button 
+                          title="Edit Diet Cycle"
+                          variant="ghost" 
+                          size="icon" 
+                          onClick={() => { setIsNew(false); setEdit(c); }}
+                        >
+                          <Edit2 className="h-5 w-5" />
                         </Button>
-                        <Button variant="ghost" size="icon" onClick={() => toggleStatus(c)}>
-                          <Trash2 className="h-4 w-4 text-destructive" />
+                        
+                        {/* 👇 Updated to dynamically switch activation icons */}
+                        <Button 
+                          title={c.active ? "Deactivate Cycle" : "Activate Cycle"}
+                          variant="ghost" 
+                          size="icon" 
+                          onClick={() => toggleStatus(c)}
+                        >
+                          {c.active ? (
+                            <Ban className="h-5 w-5 text-destructive" />
+                          ) : (
+                            <CheckCircle className="h-5 w-5 text-primary" />
+                          )}
                         </Button>
                       </div>
                     </TableCell>

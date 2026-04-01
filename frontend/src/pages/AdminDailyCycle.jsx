@@ -69,7 +69,7 @@ const AdminDailyCycle = () => {
     };
 
     fetchAll();
-  }, []);
+  }, [today, toast]);
 
   // Refetch daily cycle when date changes
   useEffect(() => {
@@ -125,7 +125,7 @@ const AdminDailyCycle = () => {
     return (
       <div className="flex items-center justify-center py-20">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        <span className="ml-3 text-muted-foreground">Loading cycle data...</span>
+        <span className="ml-3 text-lg text-muted-foreground">Loading cycle data...</span>
       </div>
     );
   }
@@ -136,14 +136,15 @@ const AdminDailyCycle = () => {
 
       {/* Current active cycles */}
       <Card className="border-primary/30 bg-primary/5">
-        <CardContent className="pt-4">
-          <p className="text-label font-semibold text-muted-foreground mb-3">Today's Active Cycles</p>
+        <CardContent className="pt-5">
+          <p className="text-base font-semibold text-muted-foreground mb-3">Today's Active Cycles</p>
           <div className="flex flex-wrap gap-3">
-            <Badge className="bg-primary text-primary-foreground text-sm px-4 py-1.5 gap-2">
-              <Leaf className="h-4 w-4" /> Patient: {currentCycle?.patientCycle || patientCycle || "Not Set"}
+            {/* 👇 Bumped text to text-base and icons to h-5 w-5 */}
+            <Badge className="bg-primary text-primary-foreground text-base px-4 py-2 gap-2">
+              <Leaf className="h-5 w-5" /> Patient: {currentCycle?.patientCycle || patientCycle || "Not Set"}
             </Badge>
-            <Badge className="bg-badge-hospital text-primary-foreground text-sm px-4 py-1.5 gap-2">
-              <Drumstick className="h-4 w-4" /> Staff: {currentCycle?.staffCycle || staffCycle || "Not Set"}
+            <Badge className="bg-badge-hospital text-primary-foreground text-base px-4 py-2 gap-2">
+              <Drumstick className="h-5 w-5" /> Staff: {currentCycle?.staffCycle || staffCycle || "Not Set"}
             </Badge>
           </div>
         </CardContent>
@@ -155,49 +156,55 @@ const AdminDailyCycle = () => {
           <CardTitle className="text-heading-sm">Set Diet Cycles</CardTitle>
         </CardHeader>
         <CardContent className="space-y-5">
-          <div className="space-y-1.5 max-w-xs">
-            <Label className="text-label font-semibold flex items-center gap-2">
-              <CalendarDays className="h-4 w-4 text-muted-foreground" /> Date
+          <div className="space-y-2 max-w-xs">
+            {/* 👇 Bumped Label text sizes to text-base */}
+            <Label className="text-base font-semibold flex items-center gap-2">
+              <CalendarDays className="h-5 w-5 text-muted-foreground" /> Date
             </Label>
             <Input
               type="date"
               value={date}
               onChange={(e) => { setDate(e.target.value); setSaved(false); }}
-              className="h-11"
+              className="h-12 text-base"
             />
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-            <div className="space-y-1.5">
-              <Label className="text-label font-semibold flex items-center gap-2">
-                <Leaf className="h-4 w-4 text-primary" /> Patient Diet Cycle
+            <div className="space-y-2">
+              <Label className="text-base font-semibold flex items-center gap-2">
+                <Leaf className="h-5 w-5 text-primary" /> Patient Diet Cycle
               </Label>
               <Select
                 value={patientCycle}
                 onValueChange={(v) => { setPatientCycle(v); setSaved(false); }}
               >
-                <SelectTrigger className="h-12 touch-target"><SelectValue placeholder="Select cycle" /></SelectTrigger>
+                <SelectTrigger className="h-12 text-base touch-target cursor-pointer">
+                  <SelectValue placeholder="Select cycle" />
+                </SelectTrigger>
                 <SelectContent>
                   {dietCycles.map((c) => (
-                    <SelectItem key={c.id} value={c.nameEn}>
+                    <SelectItem key={c.id} value={c.nameEn} className="text-base cursor-pointer">
                       {c.nameSi ? `${c.nameSi} / ` : ""}{c.nameEn}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-1.5">
-              <Label className="text-label font-semibold flex items-center gap-2">
-                <Drumstick className="h-4 w-4 text-badge-hospital" /> Staff Diet Cycle
+            
+            <div className="space-y-2">
+              <Label className="text-base font-semibold flex items-center gap-2">
+                <Drumstick className="h-5 w-5 text-badge-hospital" /> Staff Diet Cycle
               </Label>
               <Select
                 value={staffCycle}
                 onValueChange={(v) => { setStaffCycle(v); setSaved(false); }}
               >
-                <SelectTrigger className="h-12 touch-target"><SelectValue placeholder="Select cycle" /></SelectTrigger>
+                <SelectTrigger className="h-12 text-base touch-target cursor-pointer">
+                  <SelectValue placeholder="Select cycle" />
+                </SelectTrigger>
                 <SelectContent>
                   {dietCycles.map((c) => (
-                    <SelectItem key={c.id} value={c.nameEn}>
+                    <SelectItem key={c.id} value={c.nameEn} className="text-base cursor-pointer">
                       {c.nameSi ? `${c.nameSi} / ` : ""}{c.nameEn}
                     </SelectItem>
                   ))}
@@ -207,21 +214,21 @@ const AdminDailyCycle = () => {
           </div>
 
           {dietCycles.length === 0 && (
-            <p className="text-sm text-destructive">
+            <p className="text-sm text-destructive font-medium bg-destructive/10 p-3 rounded-md">
               No diet cycles found. Please add cycles in the Diet Cycles management page first.
             </p>
           )}
 
-          <div className="flex justify-end pt-2">
+          <div className="flex justify-end pt-4 border-t mt-6">
             <Button
               onClick={handleSave}
               disabled={saved || saving || !patientCycle || !staffCycle}
-              className="h-12 px-8 touch-target"
+              className="h-12 px-8 touch-target text-base font-medium"
             >
               {saving ? (
-                <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Saving...</>
+                <><Loader2 className="h-5 w-5 mr-2 animate-spin" /> Saving...</>
               ) : (
-                <><Save className="h-4 w-4 mr-2" /> Save Cycle Selection</>
+                <><Save className="h-5 w-5 mr-2" /> Save Cycle Selection</>
               )}
             </Button>
           </div>

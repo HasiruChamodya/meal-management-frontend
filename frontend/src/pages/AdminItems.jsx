@@ -32,11 +32,6 @@ const DEFAULT_UNITS = [
   "100g", "400g", "L", "180ml", "375ml", "Pcs", "Fruit", "Pkt",
 ];
 
-// Vegetable categories are derived from the categories list at runtime
-// Any category that contains "vegetable", "palaa", "gedi", "piti" in its name
-// is considered a vegetable category. New categories added by the admin
-// will also appear if they are assigned as veg categories to items.
-
 const AdminItems = () => {
   const { toast } = useToast();
 
@@ -111,18 +106,18 @@ const AdminItems = () => {
     ? items.filter((i) => i.categoryId === selectedCat)
     : items;
 
-  // Build vegetable category options dynamically from:
-  // 1. Categories whose name contains vegetable-related keywords
-  // 2. Any unique vegCategory values already used by existing items
+  // 👇 Added sorting logic: Alphabetical by English name
+  const sortedItems = [...filtered].sort((a, b) => {
+    return (a.nameEn || "").localeCompare(b.nameEn || "");
+  });
+
   const vegCatOptions = (() => {
     const options = new Map();
-
-    // From categories — any category with "vegetable", "palaa", "gedi", "piti" in name
     const vegKeywords = ["vegetable", "palaa", "gedi", "piti", "pishta", "elawalu"];
+    
     for (const cat of categories) {
       const nameLower = (cat.name || "").toLowerCase();
       if (vegKeywords.some((kw) => nameLower.includes(kw))) {
-        // Create a short key from the category name
         let key = nameLower;
         if (nameLower.includes("palaa")) key = "palaa";
         else if (nameLower.includes("gedi") || nameLower.includes("elawalu")) key = "gedi";
@@ -134,7 +129,6 @@ const AdminItems = () => {
       }
     }
 
-    // From existing items — pick up any vegCategory values not already in the list
     for (const item of items) {
       if (item.vegCategory && !options.has(item.vegCategory)) {
         options.set(item.vegCategory, {
@@ -144,7 +138,6 @@ const AdminItems = () => {
       }
     }
 
-    // If nothing was found, add a default "other"
     if (options.size === 0) {
       options.set("other", { value: "other", label: "Other" });
     }
@@ -152,7 +145,6 @@ const AdminItems = () => {
     return Array.from(options.values());
   })();
 
-  // ─── Category CRUD ───
   const openAddCategory = () => {
     setEditingCat(null);
     setCatForm({ name: "" });
@@ -213,7 +205,6 @@ const AdminItems = () => {
     }
   };
 
-  // ─── Item CRUD ───
   const emptyItem = (categoryId) => ({
     nameEn: "", nameSi: "", unit: "Kg", defaultPrice: 0,
     categoryId: categoryId || selectedCat || (categories[0]?.id) || 1,
@@ -397,68 +388,86 @@ const AdminItems = () => {
             ) : (
               <Table>
                 <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-8">#</TableHead>
-                    <TableHead>Item (EN)</TableHead>
-                    <TableHead>Item (SI)</TableHead>
-                    <TableHead>Unit</TableHead>
-                    <TableHead className="text-right">Price</TableHead>
-                    <TableHead>Protein</TableHead>
-                    <TableHead className="hidden lg:table-cell">Veg Cat.</TableHead>
-                    <TableHead>Calc Type</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
+                  {/* 👇 Upgraded text-lg and text-center headers */}
+                  <TableRow className="text-lg">
+                    <TableHead className="font-semibold text-foreground text-center w-8">#</TableHead>
+                    <TableHead className="font-semibold text-foreground text-center">Item (EN)</TableHead>
+                    <TableHead className="font-semibold text-foreground text-center">Item (SI)</TableHead>
+                    <TableHead className="font-semibold text-foreground text-center">Unit</TableHead>
+                    <TableHead className="font-semibold text-foreground text-center">Price</TableHead>
+                    <TableHead className="font-semibold text-foreground text-center">Protein</TableHead>
+                    <TableHead className="hidden lg:table-cell font-semibold text-foreground text-center">Veg Cat.</TableHead>
+                    <TableHead className="font-semibold text-foreground text-center">Calc Type</TableHead>
+                    <TableHead className="font-semibold text-foreground text-center">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filtered.map((item, idx) => (
-                    <TableRow key={item.id}>
-                      <TableCell className="text-muted-foreground">{idx + 1}</TableCell>
-                      <TableCell className="font-medium">{item.nameEn}</TableCell>
-                      <TableCell className="text-muted-foreground">{item.nameSi}</TableCell>
-                      <TableCell>{item.unit}</TableCell>
-                      <TableCell className="text-right">Rs. {item.defaultPrice}</TableCell>
-                      <TableCell>
+                  {/* 👇 Mapped over sortedItems */}
+                  {sortedItems.map((item, idx) => (
+                    <TableRow 
+                      key={item.id} 
+                      className="text-lg hover:bg-muted/50 transition-colors cursor-pointer"
+                    >
+                      <TableCell className="text-muted-foreground py-5 text-center">{idx + 1}</TableCell>
+                      <TableCell className="font-medium py-5 text-center">{item.nameEn}</TableCell>
+                      <TableCell className="text-muted-foreground py-5 text-center">{item.nameSi}</TableCell>
+                      <TableCell className="py-5 text-center">{item.unit}</TableCell>
+                      <TableCell className="py-5 text-center">Rs. {item.defaultPrice}</TableCell>
+                      <TableCell className="py-5 text-center">
                         {item.isProtein && (
-                          <Badge className="bg-destructive/20 text-destructive">
+                          <Badge className="bg-destructive/20 text-destructive text-base px-3 py-1">
                             {item.dietCycle || "Yes"}
                           </Badge>
                         )}
                       </TableCell>
-                      <TableCell className="hidden lg:table-cell">
+                      <TableCell className="hidden lg:table-cell py-5 text-center">
                         {item.vegCategory && (
-                          <Badge className="bg-primary/20 text-primary capitalize">{item.vegCategory}</Badge>
+                          <Badge className="bg-primary/20 text-primary capitalize text-base px-3 py-1">
+                            {item.vegCategory}
+                          </Badge>
                         )}
                       </TableCell>
-                      <TableCell>
-                        <Badge className="bg-muted text-muted-foreground text-xs">
+                      <TableCell className="py-5 text-center">
+                        <Badge className="bg-muted text-muted-foreground text-base px-3 py-1">
                           {item.calcType === "norm_weight" ? "Norm Weight" : "Raw Sum"}
                         </Badge>
                       </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex justify-end gap-1">
-                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEditItem(item)}>
-                            <Edit2 className="h-3.5 w-3.5" />
+                      <TableCell className="py-5">
+                        <div className="flex justify-center gap-2">
+                          <Button 
+                            title="Edit Item"
+                            variant="ghost" 
+                            size="icon" 
+                            onClick={() => openEditItem(item)}
+                          >
+                            <Edit2 className="h-5 w-5" />
                           </Button>
-                          <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => handleDeleteItem(item)}>
-                            <Trash2 className="h-3.5 w-3.5" />
+                          <Button 
+                            title="Delete Item"
+                            variant="ghost" 
+                            size="icon" 
+                            className="text-destructive" 
+                            onClick={() => handleDeleteItem(item)}
+                          >
+                            <Trash2 className="h-5 w-5" />
                           </Button>
                         </div>
                       </TableCell>
                     </TableRow>
                   ))}
 
-                  {filtered.length > 0 && (
+                  {sortedItems.length > 0 && (
                     <TableRow>
-                      <TableCell colSpan={9} className="text-center">
+                      <TableCell colSpan={9} className="text-center py-4">
                         <Button variant="ghost" size="sm" className="text-primary"
                           onClick={() => openItemDialog(selectedCat || undefined)}>
-                          <Plus className="h-3.5 w-3.5 mr-1" /> Add Item
+                          <Plus className="h-4 w-4 mr-2" /> Add Item
                         </Button>
                       </TableCell>
                     </TableRow>
                   )}
 
-                  {filtered.length === 0 && (
+                  {sortedItems.length === 0 && (
                     <TableRow>
                       <TableCell colSpan={9} className="text-center text-muted-foreground py-6">
                         No items found

@@ -222,6 +222,21 @@ const AdminRecipes = () => {
     }
   };
 
+  // 👇 Sort Recipes Alphabetically
+  const sortedRecipes = [...recipes].sort((a, b) => 
+    (a.name || "").localeCompare(b.name || "")
+  );
+
+  // 👇 Sort Ingredients Alphabetically
+  const sortedIngredients = [...ingredients].sort((a, b) => 
+    (a.itemNameEn || "").localeCompare(b.itemNameEn || "")
+  );
+
+  // 👇 Sort Items in Dropdown Alphabetically
+  const sortedItems = [...items].sort((a, b) => 
+    (a.nameEn || "").localeCompare(b.nameEn || "")
+  );
+
   return (
     <div className="space-y-6">
       <h1 className="text-heading-md font-bold text-foreground">Recipe Formula Editor</h1>
@@ -229,25 +244,26 @@ const AdminRecipes = () => {
       <Card>
         <CardContent className="pt-4 flex flex-wrap gap-3">
           <Select value={selectedRecipeId} onValueChange={setSelectedRecipeId}>
-            <SelectTrigger className="w-64 h-12">
+            {/* 👇 Increased size to h-12 and text-base */}
+            <SelectTrigger className="w-72 h-12 text-base touch-target cursor-pointer">
               <SelectValue placeholder="Select recipe" />
             </SelectTrigger>
             <SelectContent>
-              {recipes.map((recipe) => (
-                <SelectItem key={recipe.id} value={String(recipe.id)}>
+              {sortedRecipes.map((recipe) => (
+                <SelectItem key={recipe.id} value={String(recipe.id)} className="text-base cursor-pointer">
                   {recipe.name}
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
 
-          <Button variant="outline" onClick={openAddRecipe}>
-            <Plus className="h-4 w-4 mr-2" />
+          <Button variant="outline" className="h-12 px-5 text-base touch-target" onClick={openAddRecipe}>
+            <Plus className="h-5 w-5 mr-2" />
             Add Recipe
           </Button>
 
-          <Button variant="outline" onClick={openEditRecipe} disabled={!selectedRecipe}>
-            <Edit2 className="h-4 w-4 mr-2" />
+          <Button variant="outline" className="h-12 px-5 text-base touch-target" onClick={openEditRecipe} disabled={!selectedRecipe}>
+            <Edit2 className="h-5 w-5 mr-2" />
             Edit Recipe
           </Button>
         </CardContent>
@@ -255,17 +271,17 @@ const AdminRecipes = () => {
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-label font-semibold">
+          <CardTitle className="text-heading-sm">
             {selectedRecipe ? `${selectedRecipe.name} — Ingredients` : "Ingredients"}
           </CardTitle>
         </CardHeader>
         <CardContent>
           {loading ? (
-            <div className="py-6 text-center text-muted-foreground">Loading...</div>
+            <div className="py-6 text-center text-muted-foreground text-lg">Loading...</div>
           ) : (
             <>
               <div className="flex justify-end mb-3">
-                <Button onClick={openAddIngredient} disabled={!selectedRecipe}>
+                <Button onClick={openAddIngredient} disabled={!selectedRecipe} className="touch-target">
                   <Plus className="h-4 w-4 mr-2" />
                   Add Ingredient
                 </Button>
@@ -273,38 +289,52 @@ const AdminRecipes = () => {
 
               <Table>
                 <TableHeader>
-                  <TableRow>
-                    <TableHead>Ingredient</TableHead>
-                    <TableHead>Ingredient (SI)</TableHead>
-                    <TableHead className="text-right">Norm Per Patient</TableHead>
-                    <TableHead>Unit</TableHead>
-                    <TableHead>Actions</TableHead>
+                  <TableRow className="text-lg">
+                    <TableHead className="font-semibold text-foreground text-center">Ingredient (EN)</TableHead>
+                    <TableHead className="font-semibold text-foreground text-center">Ingredient (SI)</TableHead>
+                    <TableHead className="font-semibold text-foreground text-center">Norm Per Patient</TableHead>
+                    <TableHead className="font-semibold text-foreground text-center">Unit</TableHead>
+                    <TableHead className="font-semibold text-foreground text-center">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {ingredients.map((ing) => (
-                    <TableRow key={ing.id}>
-                      <TableCell className="font-medium">{ing.itemNameEn}</TableCell>
-                      <TableCell className="text-muted-foreground">{ing.itemNameSi}</TableCell>
-                      <TableCell className="text-right">{ing.normPerPatient}</TableCell>
-                      <TableCell className="text-muted-foreground">{ing.unit}</TableCell>
-                      <TableCell>
-                        <div className="flex gap-2">
-                          <Button variant="ghost" size="sm" onClick={() => openEditIngredient(ing)}>
-                            <Edit2 className="h-4 w-4" />
+                  {/* 👇 Mapped over sortedIngredients with typography upgrades */}
+                  {sortedIngredients.map((ing) => (
+                    <TableRow 
+                      key={ing.id} 
+                      className="text-lg hover:bg-muted/50 transition-colors cursor-pointer"
+                    >
+                      <TableCell className="font-medium py-5 text-center">{ing.itemNameEn}</TableCell>
+                      <TableCell className="text-muted-foreground py-5 text-center">{ing.itemNameSi}</TableCell>
+                      <TableCell className="py-5 text-center">{ing.normPerPatient}</TableCell>
+                      <TableCell className="text-muted-foreground py-5 text-center">{ing.unit}</TableCell>
+                      <TableCell className="py-5">
+                        <div className="flex justify-center gap-2">
+                          <Button 
+                            title="Edit Ingredient"
+                            variant="ghost" 
+                            size="icon" 
+                            onClick={() => openEditIngredient(ing)}
+                          >
+                            <Edit2 className="h-5 w-5" />
                           </Button>
-                          <Button variant="ghost" size="sm" onClick={() => deleteIngredient(ing.id)}>
-                            <Trash2 className="h-4 w-4 text-destructive" />
+                          <Button 
+                            title="Delete Ingredient"
+                            variant="ghost" 
+                            size="icon" 
+                            onClick={() => deleteIngredient(ing.id)}
+                          >
+                            <Trash2 className="h-5 w-5 text-destructive" />
                           </Button>
                         </div>
                       </TableCell>
                     </TableRow>
                   ))}
 
-                  {ingredients.length === 0 && (
+                  {sortedIngredients.length === 0 && (
                     <TableRow>
-                      <TableCell colSpan={5} className="text-center text-muted-foreground py-6">
-                        No ingredients found
+                      <TableCell colSpan={5} className="text-center text-muted-foreground py-6 text-lg">
+                        No ingredients found for this recipe.
                       </TableCell>
                     </TableRow>
                   )}
@@ -316,8 +346,12 @@ const AdminRecipes = () => {
       </Card>
 
       <div className="flex justify-end">
-        <Button onClick={() => fetchRecipeIngredients(selectedRecipeId)} disabled={!selectedRecipe}>
-          <Save className="h-4 w-4 mr-2" />
+        <Button 
+          className="h-12 px-6 text-base touch-target" 
+          onClick={() => fetchRecipeIngredients(selectedRecipeId)} 
+          disabled={!selectedRecipe}
+        >
+          <Save className="h-5 w-5 mr-2" />
           Refresh Recipe
         </Button>
       </div>
@@ -329,29 +363,31 @@ const AdminRecipes = () => {
           </DialogHeader>
 
           <div className="space-y-4">
-            <div>
-              <Label>Recipe Key</Label>
+            <div className="space-y-1.5">
+              <Label className="text-base font-semibold">Recipe Key</Label>
               <Input
                 value={newRecipe.recipeKey}
                 onChange={(e) => setNewRecipe((p) => ({ ...p, recipeKey: e.target.value }))}
                 placeholder="e.g. polSambola"
+                className="h-11 text-base"
               />
             </div>
-            <div>
-              <Label>Recipe Name</Label>
+            <div className="space-y-1.5">
+              <Label className="text-base font-semibold">Recipe Name</Label>
               <Input
                 value={newRecipe.name}
                 onChange={(e) => setNewRecipe((p) => ({ ...p, name: e.target.value }))}
                 placeholder="e.g. Pol Sambola"
+                className="h-11 text-base"
               />
             </div>
           </div>
 
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setRecipeDialogOpen(false)}>
+          <DialogFooter className="mt-2 gap-2">
+            <Button variant="outline" onClick={() => setRecipeDialogOpen(false)} className="touch-target">
               Cancel
             </Button>
-            <Button onClick={saveRecipe}>Save</Button>
+            <Button onClick={saveRecipe} className="touch-target">Save</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -363,8 +399,8 @@ const AdminRecipes = () => {
           </DialogHeader>
 
           <div className="space-y-4">
-            <div>
-              <Label>Item</Label>
+            <div className="space-y-1.5">
+              <Label className="text-base font-semibold">Item</Label>
               <Select
                 value={ingredientForm.itemId}
                 onValueChange={(v) =>
@@ -379,12 +415,13 @@ const AdminRecipes = () => {
                 }
                 disabled={!!ingredientForm.editId}
               >
-                <SelectTrigger>
+                <SelectTrigger className="h-11 text-base">
                   <SelectValue placeholder="Select item from items table" />
                 </SelectTrigger>
                 <SelectContent>
-                  {items.map((item) => (
-                    <SelectItem key={item.id} value={String(item.id)}>
+                  {/* 👇 Mapped over sortedItems */}
+                  {sortedItems.map((item) => (
+                    <SelectItem key={item.id} value={String(item.id)} className="text-base">
                       {item.nameEn} ({item.nameSi})
                     </SelectItem>
                   ))}
@@ -392,38 +429,43 @@ const AdminRecipes = () => {
               </Select>
             </div>
 
-            <div>
-              <Label>Norm Per Patient</Label>
-              <Input
-                type="number"
-                min={0}
-                step="0.01"
-                value={ingredientForm.normPerPatient}
-                onChange={(e) =>
-                  setIngredientForm((p) => ({
-                    ...p,
-                    normPerPatient: parseFloat(e.target.value) || 0,
-                  }))
-                }
-              />
-            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <Label className="text-base font-semibold">Norm Per Patient</Label>
+                <Input
+                  type="number"
+                  min={0}
+                  step="0.01"
+                  value={ingredientForm.normPerPatient}
+                  onChange={(e) =>
+                    setIngredientForm((p) => ({
+                      ...p,
+                      normPerPatient: parseFloat(e.target.value) || 0,
+                    }))
+                  }
+                  className="h-11 text-base"
+                />
+              </div>
 
-            <div>
-              <Label>Unit</Label>
-              <Input
-                value={ingredientForm.unit}
-                onChange={(e) =>
-                  setIngredientForm((p) => ({ ...p, unit: e.target.value }))
-                }
-              />
+              <div className="space-y-1.5">
+                <Label className="text-base font-semibold">Unit</Label>
+                <Input
+                  value={ingredientForm.unit}
+                  onChange={(e) =>
+                    setIngredientForm((p) => ({ ...p, unit: e.target.value }))
+                  }
+                  className="h-11 text-base bg-muted/50"
+                  readOnly
+                />
+              </div>
             </div>
           </div>
 
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIngredientDialogOpen(false)}>
+          <DialogFooter className="mt-2 gap-2">
+            <Button variant="outline" onClick={() => setIngredientDialogOpen(false)} className="touch-target">
               Cancel
             </Button>
-            <Button onClick={saveIngredient}>Save</Button>
+            <Button onClick={saveIngredient} className="touch-target">Save</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

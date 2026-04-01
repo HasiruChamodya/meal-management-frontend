@@ -8,7 +8,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Edit2 } from "lucide-react";
+// 👇 Added Ban and CheckCircle for consistent action icons
+import { Plus, Edit2, Ban, CheckCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const API_BASE = "http://localhost:5050/api/diet-types";
@@ -17,6 +18,12 @@ const getAuthHeaders = () => ({
   "Content-Type": "application/json",
   Authorization: `Bearer ${sessionStorage.getItem("token")}`,
 });
+
+// 👇 Added rich theme colors for consistency
+const STATUS_STYLE = {
+  active: "bg-success text-success-foreground hover:bg-success border-transparent font-medium",
+  inactive: "bg-error-bg text-destructive hover:bg-error-bg border-transparent font-medium",
+};
 
 const emptyDietType = {
   id: "", code: "", nameEn: "", nameSi: "", ageRange: "All", type: "Patient", displayOrder: 1, active: true,
@@ -99,6 +106,13 @@ const AdminDietTypes = () => {
     }
   };
 
+  // 👇 Sort types: Active at the top, Inactive at the bottom. Also sorts by displayOrder.
+  const sortedTypes = [...types].sort((a, b) => {
+    if (a.active && !b.active) return -1;
+    if (!a.active && b.active) return 1;
+    return (a.displayOrder || 0) - (b.displayOrder || 0);
+  });
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -113,54 +127,82 @@ const AdminDietTypes = () => {
           ) : (
             <Table>
               <TableHeader>
-                <TableRow>
-                  <TableHead>Code</TableHead>
-                  <TableHead>Name (EN)</TableHead>
-                  <TableHead>Name (SI)</TableHead>
-                  <TableHead>Type</TableHead>
-                  <TableHead className="text-right">Order</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
+                <TableRow className="text-lg">
+                  <TableHead className="font-semibold text-foreground text-center">Code</TableHead>
+                  <TableHead className="font-semibold text-foreground text-center">Name (EN)</TableHead>
+                  <TableHead className="font-semibold text-foreground text-center">Name (SI)</TableHead>
+                  <TableHead className="font-semibold text-foreground text-center">Type</TableHead>
+                  <TableHead className="font-semibold text-foreground text-center">Order</TableHead>
+                  <TableHead className="font-semibold text-foreground text-center">Status</TableHead>
+                  <TableHead className="font-semibold text-foreground text-center">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {types.map((t) => (
+                {sortedTypes.map((t) => (
                   <TableRow 
                     key={t.id} 
                     className={cn(
-                      "transition-all", 
-                      !t.active && "opacity-50 bg-muted/30 grayscale"
+                      "text-lg hover:bg-muted/50 transition-colors cursor-pointer", 
+                      !t.active && "opacity-60 grayscale"
                     )}
                   >
-                    <TableCell className={cn("font-medium", !t.active && "text-muted-foreground")}>{t.code}</TableCell>
-                    <TableCell className={cn(!t.active && "text-muted-foreground")}>{t.nameEn}</TableCell>
-                    <TableCell className="text-muted-foreground">{t.nameSi}</TableCell>
-                    <TableCell><Badge className="bg-muted text-muted-foreground">{t.type}</Badge></TableCell>
-                    <TableCell className="text-right text-muted-foreground">{t.displayOrder}</TableCell>
-                    <TableCell>
-                      <Badge className={t.active ? "bg-primary/20 text-primary" : "bg-muted text-muted-foreground"}>
+                    <TableCell className={cn("font-medium py-5 text-center", !t.active && "text-muted-foreground")}>{t.code}</TableCell>
+                    <TableCell className={cn("py-5 text-center", !t.active && "text-muted-foreground")}>{t.nameEn}</TableCell>
+                    <TableCell className="text-muted-foreground py-5 text-center">{t.nameSi}</TableCell>
+                    <TableCell className="py-5 text-center">
+                      <Badge className="bg-muted text-muted-foreground hover:bg-muted border-transparent text-base px-3 py-1">
+                        {t.type}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-muted-foreground py-5 text-center">{t.displayOrder}</TableCell>
+                    <TableCell className="py-5 text-center">
+                      <Badge 
+                        className={`text-base px-3 py-1 ${
+                          t.active ? STATUS_STYLE.active : STATUS_STYLE.inactive
+                        }`}
+                      >
                         {t.active ? "Active" : "Inactive"}
                       </Badge>
                     </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex justify-end gap-2">
-                        <Button variant="ghost" size="icon" onClick={() => { setIsNew(false); setEdit(t); }} disabled={!t.active}>
-                          <Edit2 className="h-4 w-4" />
+                    <TableCell className="py-5">
+                      <div className="flex justify-center gap-2">
+                        <Button 
+                          title="Edit Diet Type"
+                          variant="ghost" 
+                          size="icon" 
+                          onClick={() => { setIsNew(false); setEdit(t); }} 
+                        >
+                          <Edit2 className="h-5 w-5" />
                         </Button>
-                        <Button variant="ghost" size="sm" onClick={() => toggleStatus(t)}>
-                          {t.active ? "Deactivate" : "Activate"}
+                        <Button 
+                          title={t.active ? "Deactivate Diet Type" : "Activate Diet Type"}
+                          variant="ghost" 
+                          size="icon" 
+                          onClick={() => toggleStatus(t)}
+                        >
+                          {t.active ? (
+                            <Ban className="h-5 w-5 text-destructive" />
+                          ) : (
+                            <CheckCircle className="h-5 w-5 text-primary" />
+                          )}
                         </Button>
                       </div>
                     </TableCell>
                   </TableRow>
                 ))}
+                {types.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={7} className="text-center text-muted-foreground py-6">
+                      No diet types found
+                    </TableCell>
+                  </TableRow>
+                )}
               </TableBody>
             </Table>
           )}
         </CardContent>
       </Card>
 
-      {/* Dialog code remains exactly the same! */}
       <Dialog open={!!edit} onOpenChange={() => setEdit(null)}>
         <DialogContent>
           <DialogHeader><DialogTitle>{isNew ? "Add Diet Type" : "Edit Diet Type"}</DialogTitle></DialogHeader>
