@@ -7,7 +7,7 @@ import { useToast } from "@/hooks/use-toast";
 import { ITEM_CATEGORIES } from "@/lib/module-data";
 import { AlertTriangle, Search, Save } from "lucide-react";
 
-const API_BASE = "http://localhost:5050/api/items";
+const API_BASE = "https://hospital-meal-management.onrender.com/api/items";
 
 const getAuthHeaders = () => {
   const token = sessionStorage.getItem("token");
