@@ -13,7 +13,7 @@ import { Search, Loader2, FileText, ClipboardList } from "lucide-react";
 import { getTodaySL } from "@/lib/date-utils";
 import { cn } from "@/lib/utils";
 
-const API_BASE = "http://localhost:5050/api";
+const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:5050/api";;
 
 const getAuthHeaders = () => {
   const token = sessionStorage.getItem("token");

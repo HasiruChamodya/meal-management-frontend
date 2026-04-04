@@ -7,7 +7,7 @@ import { Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 
-const API_BASE = "https://hospital-meal-management.onrender.com/api";
+const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:5050/api";
 
 const getAuthHeaders = () => ({
   "Content-Type": "application/json",

@@ -10,7 +10,7 @@ import { CheckCircle2, Clock, Square, Calculator, Loader2, Leaf, Drumstick } fro
 import { getTodaySL } from "@/lib/date-utils";
 import { cn } from "@/lib/utils";
 
-const API_BASE = "http://localhost:5050/api";
+const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:5050/api";
 
 const getAuthHeaders = () => {
   const token = sessionStorage.getItem("token");
