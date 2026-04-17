@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,7 +7,7 @@ import { useToast } from "@/hooks/use-toast";
 import { ITEM_CATEGORIES } from "@/lib/module-data";
 import { AlertTriangle, Search, Save } from "lucide-react";
 
-const API_BASE = "http://localhost:5050/api/items";
+const API_BASE = `${import.meta.env.VITE_API_BASE || "http://localhost:5050/api"}/items`;
 
 const getAuthHeaders = () => {
   const token = sessionStorage.getItem("token");

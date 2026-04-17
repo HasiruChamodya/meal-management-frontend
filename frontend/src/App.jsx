@@ -2,7 +2,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useParams } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 
 import AppLayout from "@/components/layout/AppLayout";
@@ -14,6 +14,7 @@ import Unauthorized from "@/pages/Unauthorized";
 
 import CensusEntry from "@/pages/CensusEntry";
 import CensusSubmissions from "@/pages/CensusSubmissions";
+import ConsolidatedDietSheet from "@/pages/ConsolidatedDietSheet";
 
 import Calculations from "@/pages/Calculations";
 import CalculationResults from "@/pages/CalculationResults";
@@ -46,10 +47,19 @@ import Backups from "@/pages/Backups";
 import SystemSettings from "@/pages/SystemSettings";
 
 import NotFound from "@/pages/NotFound";
+import CalculationHistory from "@/pages/CalculationHistory";
+import DailyHistory from "@/pages/DailyHistory";
+import CensusHistory from "@/pages/CensusHistory";
+
 
 const queryClient = new QueryClient();
 
 const Page = ({ children }) => <AppLayout>{children}</AppLayout>;
+const LegacyInvoiceDetailRedirect = () => {
+  const { id } = useParams();
+
+  return <Navigate to={`/purchase-orders/${id}`} replace />;
+};
 
 function App() {
   return (
@@ -92,6 +102,22 @@ function App() {
                   </Page>
                 }
               />
+              <Route
+                path="/reports/consolidated-diet-sheet"
+                element={
+                  <Page>
+                    <ConsolidatedDietSheet />
+                  </Page>
+                }
+              />
+              <Route
+                path= "/census/history"
+                element={
+                  <Page>
+                    <CensusHistory />
+                  </Page>
+                }
+              />
 
               {/* Subject Clerk */}
               <Route
@@ -126,6 +152,14 @@ function App() {
                   </Page>
                 }
               />
+              <Route 
+                path="/calculations/history"
+                element={
+                  <Page>
+                    <CalculationHistory />
+                  </Page>
+                }
+              />
 
               {/* Accountant */}
               <Route
@@ -145,7 +179,7 @@ function App() {
                 }
               />
               <Route
-                path="/invoices"
+                path="/purchase-orders"
                 element={
                   <Page>
                     <Invoices />
@@ -153,12 +187,16 @@ function App() {
                 }
               />
               <Route
-                path="/invoices/:id"
+                path="/purchase-orders/:id"
                 element={
                   <Page>
                     <InvoiceDetail />
                   </Page>
                 }
+              />
+              <Route
+                path="/invoices/:id"
+                element={<LegacyInvoiceDetailRedirect />}
               />
               <Route
                 path="/accountant/prices"
@@ -176,6 +214,22 @@ function App() {
                   </Page>
                 }
               />
+              <Route
+                path="/accountant/reports"
+                element={
+                  <Page>
+                    <IssueReports />
+                  </Page>
+                }
+              />
+              <Route
+                path="/accountant/history"
+                element={
+                  <Page>
+                    <DailyHistory />
+                  </Page>
+                }
+               />
 
               {/* Kitchen */}
               <Route
@@ -191,14 +245,6 @@ function App() {
                 element={
                   <Page>
                     <DeliveryReceiving />
-                  </Page>
-                }
-              />
-              <Route
-                path="/kitchen/reports"
-                element={
-                  <Page>
-                    <IssueReports />
                   </Page>
                 }
               />
@@ -245,7 +291,7 @@ function App() {
                 }
               />
               <Route
-                path="/admin/diet-cycles"
+                path="/admin/diet-cycle"
                 element={
                   <Page>
                     <AdminDietCycles />
@@ -265,6 +311,14 @@ function App() {
                 element={
                   <Page>
                     <AdminNotifications />
+                  </Page>
+                }
+              />
+              <Route
+                path="/admin/reports"
+                element={
+                  <Page>
+                    <IssueReports />
                   </Page>
                 }
               />

@@ -1,251 +1,408 @@
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { ChevronDown } from "lucide-react";
-import { useState } from "react";
-import { MOCK_AGGREGATED } from "@/lib/calculation-data";
+import { Loader2, Printer, ChefHat, Users, Beef, Wheat } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { useToast } from "@/hooks/use-toast";
+import { getTodaySL } from "@/lib/date-utils";
 
-const StatBox = ({ label, value, size = "lg" }) => (
-  <div className="bg-card rounded-xl border-2 border-border p-4 text-center">
-    <p className={`font-bold text-primary ${size === "lg" ? "text-5xl" : "text-3xl"}`}>{value}</p>
-    <p className="text-base text-muted-foreground font-medium mt-1">{label}</p>
-  </div>
-);
+const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:5050/api";
+
+const getAuthHeaders = () => {
+  const token = sessionStorage.getItem("token");
+  return {
+    "Content-Type": "application/json",
+    Authorization: `Bearer ${token}`,
+  };
+};
+
+const today = getTodaySL();
 
 const CookSheet = () => {
-  const [extrasOpen, setExtrasOpen] = useState(false);
-  const a = MOCK_AGGREGATED;
+  const { toast } = useToast();
+  const [loading, setLoading] = useState(true);
+  const [cookSheet, setCookSheet] = useState(null);
+  const [dietTypes, setDietTypes] = useState([]); // Store diet types for name mapping
 
-  // Mock recipe data — calculated quantities
-  const polSambolaCount = 45; // patients who ordered pol sambola
-  const soupCount = 30; // patients who ordered soup
-  const kandaCount = 0; // patients who ordered kanda
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+        // Fetch both the Cook Sheet data AND the Diet Types list at the same time
+        const [cookRes, dietRes] = await Promise.all([
+          fetch(`${API_BASE}/calculations/cook-sheet?date=${today}`, { headers: getAuthHeaders() }),
+          fetch(`${API_BASE}/diet-types`, { headers: getAuthHeaders() })
+        ]);
 
-  const polSambolaIngredients = [
-    { nameSi: "පොල්", nameEn: "Coconut (850g seeds)", qty: Math.round(polSambolaCount * 0.1 * 10) / 10, unit: "seeds" },
-    { nameSi: "කෑම මිරිස්", nameEn: "Dried Chillies", qty: Math.round(polSambolaCount * 0.9), unit: "g" },
-    { nameSi: "රතු ළූණු", nameEn: "Red Onion", qty: Math.round(polSambolaCount * 0.9), unit: "g" },
-    { nameSi: "දෙහි", nameEn: "Lime", qty: Math.round(polSambolaCount * 0.5), unit: "g" },
-    { nameSi: "ගම්මිරිස්", nameEn: "Dried Pepper", qty: Math.round(polSambolaCount * 0.3), unit: "g" },
-    { nameSi: "ලුණු", nameEn: "Salt", qty: Math.round(polSambolaCount * 0.3), unit: "g" },
+        const data = await cookRes.json();
+        const dietData = await dietRes.json();
+
+        const sheetData = data.cookSheet || data;
+
+        if (!cookRes.ok || (!data.cookSheet && !data.calcRun)) {
+          throw new Error(data.message || "No cook sheet found for today");
+        }
+
+        setCookSheet(sheetData);
+        setDietTypes(dietData.dietTypes || []);
+      } catch (error) {
+        toast({
+          title: "No Cook Sheet",
+          description: error.message || "Cook sheet not available for today",
+          variant: "destructive",
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [toast]);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <span className="ml-3 text-muted-foreground">Loading cook sheet...</span>
+      </div>
+    );
+  }
+
+  if (!cookSheet) {
+    return (
+      <div className="text-center py-12 text-muted-foreground">
+        No cook sheet available for today. The calculation has not been run yet.
+      </div>
+    );
+  }
+
+  // --- SAFE Data Extraction ---
+  const parseData = (data) => (typeof data === "string" ? JSON.parse(data || "{}") : data || {});
+
+  const patientTotals = parseData(cookSheet.patientTotals);
+  const staff = cookSheet.staff || {};
+  const dietInstructions = cookSheet.dietInstructions || [];
+  const proteinAllocation = cookSheet.proteinAllocation || [];
+  const recipes = cookSheet.recipes || [];
+  const kanda = cookSheet.kanda;
+
+  const extras = parseData(cookSheet.extras);
+  const customExtras = Array.isArray(cookSheet.customExtras) ? cookSheet.customExtras : [];
+
+  const riceData = dietInstructions.find((d) => d.type?.toLowerCase().includes("rice")) || { breakfast: 0, lunch: 0, dinner: 0 };
+  const breadData = dietInstructions.find((d) => d.type?.toLowerCase().includes("bread")) || { breakfast: 0, lunch: 0, dinner: 0 };
+
+  const extrasList = [
+    ...Object.entries(extras)
+      .filter(([, qty]) => Number(qty) > 0)
+      .map(([name, qty]) => ({ item: name, qty: Number(qty), unit: "g" })),
+    ...customExtras
+      .filter((ce) => Number(ce.quantity) > 0)
+      .map((ce) => ({ item: ce.name, qty: ce.quantity, unit: ce.unit })),
   ];
 
-  const soupIngredients = [
-    { nameSi: "කැරට්", nameEn: "Carrot", qty: soupCount * 5, unit: "g" },
-    { nameSi: "බෝංචි", nameEn: "Beans", qty: soupCount * 5, unit: "g" },
-    { nameSi: "ලීක්ස්", nameEn: "Leeks", qty: soupCount * 3, unit: "g" },
-    { nameSi: "ගෝවා", nameEn: "Gova", qty: soupCount * 4, unit: "g" },
-    { nameSi: "තක්කාලි", nameEn: "Tomato", qty: soupCount * 3, unit: "g" },
-    { nameSi: "අල", nameEn: "Potato", qty: soupCount * 8, unit: "g" },
-    { nameSi: "පරිප්පු", nameEn: "Lentils", qty: soupCount * 5, unit: "g" },
-  ];
-
-  const extras = [
-    { item: "Papaw", qty: "4,600", unit: "g" },
-    { item: "Banana (Ambul)", qty: "24", unit: "fruits" },
-    { item: "Yoghurt Cups", qty: "6", unit: "cups" },
-    { item: "Fresh Milk", qty: "6", unit: "L" },
-    { item: "Boiled Eggs", qty: "6", unit: "pcs" },
-    { item: "Orange (Yellow)", qty: "3", unit: "fruits" },
-  ];
-
-  const RecipeCard = ({
-    title,
-    count,
-    borderColor,
-    ingredients,
-  }) => (
-    <Card className={`border-2 ${borderColor}`}>
-      <CardHeader>
-        <CardTitle className="text-xl font-bold">
-          {title} — for {count} patients
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        <div className="space-y-3">
-          {ingredients.map((ing) => (
-            <div key={ing.nameEn} className="flex items-center justify-between py-2 border-b last:border-0">
-              <span className="text-base font-semibold">
-                {ing.nameSi} / {ing.nameEn}
-              </span>
-              <span className="text-xl font-bold text-primary">
-                {ing.qty} {ing.unit}
-              </span>
-            </div>
-          ))}
-        </div>
-      </CardContent>
-    </Card>
-  );
+  // Helper: Filter out Staff from Patient Totals, and map Code to English Name
+  const filteredPatients = Object.entries(patientTotals)
+    .filter(([code]) => {
+      const c = code.toUpperCase();
+      return c !== "STF" && c !== "STAFF"; // Exclude Staff from this table
+    })
+    .map(([code, count]) => {
+      // Find the English name from the database, fallback to code if not found
+      const match = dietTypes.find(d => d.code === code);
+      const nameEn = match ? (match.nameEn || match.name_en) : code;
+      return { code, name: nameEn, count };
+    });
 
   return (
-    <div className="space-y-6">
-      {/* Large header banner */}
-      <div className="bg-primary rounded-xl p-6 text-center">
-        <h1 className="text-3xl md:text-4xl font-bold text-primary-foreground">TODAY'S COOK SHEET</h1>
-        <p className="text-xl text-primary-foreground/80 mt-1">2026-03-02</p>
-        <Badge className="mt-2 bg-primary-foreground/20 text-primary-foreground text-lg px-4 py-1">Vegetable Cycle</Badge>
+    <div className="space-y-6 max-w-6xl mx-auto print:m-0 print:p-0 print:w-full print:max-w-none">
+      {/* Header Bar */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 print:mb-6">
+        <div>
+          <h1 className="text-heading-md font-bold text-foreground flex items-center gap-2 print:text-black">
+            <ChefHat className="h-8 w-8 text-primary print:text-black" />
+            Kitchen Cook Sheet
+          </h1>
+          <p className="text-muted-foreground font-medium mt-1 print:text-black">
+            District General Hospital Gampaha
+          </p>
+        </div>
+        <div className="flex items-center gap-3">
+          <Badge className="bg-primary/10 text-primary border-primary/20 text-sm py-1 print:hidden">
+            Date: {cookSheet.date || today}
+          </Badge>
+          <Badge className="bg-primary/10 text-primary border-primary/20 text-sm py-1 print:hidden">
+            Cycle: {cookSheet.patientCycle || "Vegetable"}
+          </Badge>
+          <Button onClick={() => window.print()} className="print:hidden touch-target shadow-sm">
+            <Printer className="mr-2 h-4 w-4" /> Print Sheet
+          </Button>
+        </div>
       </div>
 
-      {/* Patient details */}
-      <Card className="border-2 border-primary">
-        <CardHeader><CardTitle className="text-xl font-bold">Patient Details</CardTitle></CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-            <StatBox label="Normal Diets" value={a.normal} />
-            <StatBox label="Diabetic" value={a.diabetic} />
-            <StatBox label="S1 (6-12y)" value={a.s1} />
-            <StatBox label="S2 (2-6y)" value={a.s2} />
-            <StatBox label="S3 (1-2y)" value={a.s3} />
-            <StatBox label="S4" value={a.s4} />
-            <StatBox label="S5" value={a.s5} />
-            <StatBox label="HPD" value={a.hpd} />
-            <StatBox label="Breakfast Extra" value={0} />
+      {/* Print-Only Header Details */}
+      <div className="hidden print:block text-sm font-semibold mb-6 border-b-2 border-black pb-2">
+        Date: {cookSheet.date || today} | Patient Cycle: {cookSheet.patientCycle || "Vegetable"} | Staff Cycle: {cookSheet.staffCycle || "Chicken"}
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+        {/* ================= LEFT COLUMN ================= */}
+        <div className="lg:col-span-6 space-y-6">
+          
+          {/* Patient & Staff Details Grid */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 print:grid-cols-2">
+            <Card className="print:shadow-none print:border-black print:break-inside-avoid">
+              <CardHeader className="bg-muted/30 pb-3 border-b print:bg-transparent print:border-black">
+                <CardTitle className="text-label font-bold flex items-center gap-2 print:text-black">
+                  <Users className="h-4 w-4 text-primary print:text-black" />
+                  Patient Diets
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-0">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="print:border-black">
+                      <TableHead className="font-semibold print:text-black">Diet Type</TableHead>
+                      <TableHead className="text-right font-semibold print:text-black">Count</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredPatients.length > 0 ? (
+                      filteredPatients.map(({ code, name, count }) => (
+                        <TableRow key={code} className="print:border-black">
+                          <TableCell className="font-medium print:text-black">{name}</TableCell>
+                          <TableCell className="text-right font-bold text-primary print:text-black">{count || 0}</TableCell>
+                        </TableRow>
+                      ))
+                    ) : (
+                      <TableRow>
+                        <TableCell colSpan={2} className="text-center py-4 text-muted-foreground">No patients</TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+
+            <Card className="print:shadow-none print:border-black print:break-inside-avoid">
+              <CardHeader className="bg-muted/30 pb-3 border-b print:bg-transparent print:border-black">
+                <CardTitle className="text-label font-bold flex items-center gap-2 print:text-black">
+                  <Users className="h-4 w-4 text-primary print:text-black" />
+                  Staff Meals
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-0">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="print:border-black">
+                      <TableHead className="font-semibold print:text-black">Meal</TableHead>
+                      <TableHead className="text-right font-semibold print:text-black">Count</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    <TableRow className="print:border-black">
+                      <TableCell className="font-medium print:text-black">Breakfast</TableCell>
+                      <TableCell className="text-right font-bold text-primary print:text-black">{staff.breakfast || 0}</TableCell>
+                    </TableRow>
+                    <TableRow className="print:border-black">
+                      <TableCell className="font-medium print:text-black">Lunch</TableCell>
+                      <TableCell className="text-right font-bold text-primary print:text-black">{staff.lunch || 0}</TableCell>
+                    </TableRow>
+                    <TableRow className="print:border-black">
+                      <TableCell className="font-medium print:text-black">Dinner</TableCell>
+                      <TableCell className="text-right font-bold text-primary print:text-black">{staff.dinner || 0}</TableCell>
+                    </TableRow>
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
           </div>
-        </CardContent>
-      </Card>
 
-      {/* Staff meals */}
-      <Card className="border-2 border-badge-hospital">
-        <CardHeader><CardTitle className="text-xl font-bold">Staff Meals</CardTitle></CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-3 gap-4">
-            <StatBox label="Breakfast" value={a.staffB} />
-            <StatBox label="Lunch" value={a.staffL} />
-            <StatBox label="Dinner" value={a.staffD} />
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Diet instructions */}
-      <Card className="border-2 border-warning">
-        <CardHeader><CardTitle className="text-xl font-bold">Diet Instructions to Kitchen</CardTitle></CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="text-base font-bold">Type</TableHead>
-                <TableHead className="text-base font-bold text-right">Breakfast</TableHead>
-                <TableHead className="text-base font-bold text-right">Lunch</TableHead>
-                <TableHead className="text-base font-bold text-right">Dinner</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {[
-                { type: "Rice (Kg)", b: "7.36", l: "10.28", d: "6.61" },
-                { type: "Bread (loaves)", b: "26", l: "—", d: "26" },
-                { type: "Kanda (Kg)", b: "—", l: "—", d: "—" },
-              ].map((r) => (
-                <TableRow key={r.type}>
-                  <TableCell className="text-base font-semibold">{r.type}</TableCell>
-                  <TableCell className="text-right text-lg font-bold text-primary">{r.b}</TableCell>
-                  <TableCell className="text-right text-lg font-bold text-primary">{r.l}</TableCell>
-                  <TableCell className="text-right text-lg font-bold text-primary">{r.d}</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
-
-      {/* Protein */}
-      <Card className="border-2 border-destructive">
-        <CardHeader><CardTitle className="text-xl font-bold">Protein Allocation</CardTitle></CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="text-base font-bold">Item</TableHead>
-                <TableHead className="text-base font-bold text-right">Children</TableHead>
-                <TableHead className="text-base font-bold text-right">Patients</TableHead>
-                <TableHead className="text-base font-bold text-right">Staff</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {[
-                { item: "Egg", c: 0, p: 0, s: 0 },
-                { item: "Fish (Kg)", c: 0, p: 0, s: 0 },
-                { item: "Dried Fish (Kg)", c: 0, p: 0, s: 0 },
-                { item: "Chicken (Kg)", c: 0, p: 3.02, s: 0.75 },
-              ].map((r) => (
-                <TableRow key={r.item}>
-                  <TableCell className="text-base font-semibold">{r.item}</TableCell>
-                  <TableCell className="text-right text-lg font-bold">{r.c || "—"}</TableCell>
-                  <TableCell className="text-right text-lg font-bold text-primary">{r.p || "—"}</TableCell>
-                  <TableCell className="text-right text-lg font-bold">{r.s || "—"}</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
-
-      {/* Recipes */}
-      {polSambolaCount > 0 && (
-        <RecipeCard
-          title="Pol Sambola"
-          count={polSambolaCount}
-          borderColor="border-orange-400"
-          ingredients={polSambolaIngredients}
-        />
-      )}
-
-      {soupCount > 0 && (
-        <RecipeCard
-          title="Soup"
-          count={soupCount}
-          borderColor="border-badge-hospital"
-          ingredients={soupIngredients}
-        />
-      )}
-
-      {kandaCount > 0 && (
-        <RecipeCard
-          title="Kanda (Porridge)"
-          count={kandaCount}
-          borderColor="border-purple-500"
-          ingredients={[
-            { nameSi: "හාල් - රතු නාඩු", nameEn: "Red Raw Rice", qty: kandaCount * 30, unit: "g" },
-          ]}
-        />
-      )}
-
-      {/* Extra items */}
-      <Collapsible open={extrasOpen} onOpenChange={setExtrasOpen}>
-        <Card className="border-2 border-border">
-          <CollapsibleTrigger asChild>
-            <CardHeader className="cursor-pointer">
-              <CardTitle className="text-xl font-bold flex items-center gap-2">
-                <ChevronDown className={`h-5 w-5 transition-transform ${extrasOpen ? "" : "-rotate-90"}`} />
-                Extra Items
+          {/* Bulk Carbohydrates */}
+          <Card className="print:shadow-none print:border-black print:break-inside-avoid">
+            <CardHeader className="bg-muted/30 pb-3 border-b print:bg-transparent print:border-black">
+              <CardTitle className="text-label font-bold flex items-center gap-2 print:text-black">
+                <Wheat className="h-4 w-4 text-primary print:text-black" />
+                Bulk Carbohydrates
               </CardTitle>
             </CardHeader>
-          </CollapsibleTrigger>
-          <CollapsibleContent>
-            <CardContent>
+            <CardContent className="p-0">
               <Table>
                 <TableHeader>
-                  <TableRow>
-                    <TableHead className="text-base font-bold">Item</TableHead>
-                    <TableHead className="text-base font-bold text-right">Quantity</TableHead>
-                    <TableHead className="text-base font-bold">Unit</TableHead>
+                  <TableRow className="print:border-black">
+                    <TableHead className="font-semibold print:text-black">Type</TableHead>
+                    <TableHead className="text-right font-semibold print:text-black">Breakfast</TableHead>
+                    <TableHead className="text-right font-semibold print:text-black">Lunch</TableHead>
+                    <TableHead className="text-right font-semibold print:text-black">Dinner</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {extras.map((e) => (
-                    <TableRow key={e.item}>
-                      <TableCell className="text-base font-semibold">{e.item}</TableCell>
-                      <TableCell className="text-right text-lg font-bold text-primary">{e.qty}</TableCell>
-                      <TableCell className="text-base">{e.unit}</TableCell>
-                    </TableRow>
-                  ))}
+                  <TableRow className="print:border-black">
+                    <TableCell className="font-medium print:text-black">Rice (Kg)</TableCell>
+                    <TableCell className="text-right font-bold text-primary print:text-black">{riceData.breakfast || "0.00"}</TableCell>
+                    <TableCell className="text-right font-bold text-primary print:text-black">{riceData.lunch || "0.00"}</TableCell>
+                    <TableCell className="text-right font-bold text-primary print:text-black">{riceData.dinner || "0.00"}</TableCell>
+                  </TableRow>
+                  <TableRow className="print:border-black">
+                    <TableCell className="font-medium print:text-black">White Bread (Loaves)</TableCell>
+                    <TableCell className="text-right font-bold text-primary print:text-black">{breadData.breakfast || "0"}</TableCell>
+                    <TableCell className="text-right font-bold text-primary print:text-black">{breadData.lunch || "0"}</TableCell>
+                    <TableCell className="text-right font-bold text-primary print:text-black">{breadData.dinner || "0"}</TableCell>
+                  </TableRow>
                 </TableBody>
               </Table>
             </CardContent>
-          </CollapsibleContent>
-        </Card>
-      </Collapsible>
+          </Card>
+
+          {/* Protein Allocation */}
+          <Card className="print:shadow-none print:border-black print:break-inside-avoid">
+            <CardHeader className="bg-muted/30 pb-3 border-b print:bg-transparent print:border-black">
+              <CardTitle className="text-label font-bold flex items-center gap-2 print:text-black">
+                <Beef className="h-4 w-4 text-primary print:text-black" />
+                Protein Allocation (Kg)
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-0">
+              <Table>
+                <TableHeader>
+                  <TableRow className="print:border-black">
+                    <TableHead className="font-semibold print:text-black">Item</TableHead>
+                    <TableHead className="text-right font-semibold print:text-black">Children</TableHead>
+                    <TableHead className="text-right font-semibold print:text-black">Patients</TableHead>
+                    <TableHead className="text-right font-semibold print:text-black">Staff</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {proteinAllocation.length > 0 ? (
+                    proteinAllocation.map((r) => (
+                      <TableRow key={r.nameEn} className="print:border-black">
+                        <TableCell className="font-medium print:text-black">{r.nameEn}</TableCell>
+                        <TableCell className="text-right font-bold print:text-black">{r.children?.toFixed(2) || "0.00"}</TableCell>
+                        <TableCell className="text-right font-bold text-primary print:text-black">{r.patients?.toFixed(2) || "0.00"}</TableCell>
+                        <TableCell className="text-right font-bold print:text-black">{r.staff?.toFixed(2) || "0.00"}</TableCell>
+                      </TableRow>
+                    ))
+                  ) : (
+                    <TableRow>
+                      <TableCell colSpan={4} className="text-center py-4 text-muted-foreground">No proteins allocated</TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* ================= RIGHT COLUMN ================= */}
+        <div className="lg:col-span-6 space-y-6">
+          
+          {/* Recipes (Pol Sambola, Soup, etc.) */}
+          {recipes.map((recipe, idx) => (
+            <Card key={recipe.recipeId || idx} className="print:shadow-none print:border-black print:break-inside-avoid">
+              <CardHeader className="bg-muted/30 pb-3 border-b flex flex-row items-center justify-between space-y-0 print:bg-transparent print:border-black">
+                <CardTitle className="text-label font-bold print:text-black">
+                  {recipe.recipeName || "Recipe"} Calculation
+                </CardTitle>
+                <Badge variant="outline" className="bg-background print:border-black print:text-black">
+                  {recipe.patientCount || 0} Patients
+                </Badge>
+              </CardHeader>
+              <CardContent className="p-0">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="print:border-black">
+                      <TableHead className="font-semibold print:text-black">Ingredient</TableHead>
+                      <TableHead className="text-right font-semibold print:text-black">Total Need</TableHead>
+                      <TableHead className="w-16 font-semibold print:text-black">Unit</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {recipe.ingredients?.map((ing, i) => (
+                      <TableRow key={i} className="print:border-black">
+                        <TableCell className="font-medium print:text-black">
+                          {ing.nameSi ? `${ing.nameSi} (${ing.nameEn || ing.name})` : ing.nameEn || ing.name}
+                        </TableCell>
+                        <TableCell className="text-right font-bold text-primary print:text-black">{ing.qty}</TableCell>
+                        <TableCell className="text-muted-foreground print:text-black">{ing.unit}</TableCell>
+                      </TableRow>
+                    ))}
+                    {!recipe.ingredients?.length && (
+                      <TableRow>
+                        <TableCell colSpan={3} className="text-center py-4 text-muted-foreground">No ingredients configured</TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          ))}
+
+          {/* Kanda (Porridge) */}
+          {kanda && (
+            <Card className="print:shadow-none print:border-black print:break-inside-avoid">
+              <CardHeader className="bg-muted/30 pb-3 border-b flex flex-row items-center justify-between space-y-0 print:bg-transparent print:border-black">
+                <CardTitle className="text-label font-bold print:text-black">Kenda (Porridge) Calculation</CardTitle>
+                <Badge variant="outline" className="bg-background print:border-black print:text-black">
+                  {kanda.count || 0} Patients
+                </Badge>
+              </CardHeader>
+              <CardContent className="p-0">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="print:border-black">
+                      <TableHead className="font-semibold print:text-black">Ingredient</TableHead>
+                      <TableHead className="text-right font-semibold print:text-black">Total Need</TableHead>
+                      <TableHead className="w-16 font-semibold print:text-black">Unit</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    <TableRow className="print:border-black">
+                      <TableCell className="font-medium print:text-black">Red Raw Rice (Nadu)</TableCell>
+                      <TableCell className="text-right font-bold text-primary print:text-black">{kanda.redRiceG || 0}</TableCell>
+                      <TableCell className="text-muted-foreground print:text-black">g</TableCell>
+                    </TableRow>
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Extra Items */}
+          <Card className="print:shadow-none print:border-black print:break-inside-avoid">
+            <CardHeader className="bg-muted/30 pb-3 border-b print:bg-transparent print:border-black">
+              <CardTitle className="text-label font-bold print:text-black">Extra Items Request</CardTitle>
+            </CardHeader>
+            <CardContent className="p-0">
+              <Table>
+                <TableHeader>
+                  <TableRow className="print:border-black">
+                    <TableHead className="font-semibold print:text-black">Item</TableHead>
+                    <TableHead className="text-right font-semibold print:text-black">Total Need</TableHead>
+                    <TableHead className="w-16 font-semibold print:text-black">Unit</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {extrasList.length > 0 ? (
+                    extrasList.map((e, idx) => (
+                      <TableRow key={idx} className="print:border-black">
+                        <TableCell className="font-medium print:text-black">{e.item}</TableCell>
+                        <TableCell className="text-right font-bold text-primary print:text-black">{e.qty}</TableCell>
+                        <TableCell className="text-muted-foreground print:text-black">{e.unit}</TableCell>
+                      </TableRow>
+                    ))
+                  ) : (
+                    <TableRow>
+                      <TableCell colSpan={3} className="text-center py-4 text-muted-foreground">No extra items requested</TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+
+        </div>
+      </div>
     </div>
   );
 };

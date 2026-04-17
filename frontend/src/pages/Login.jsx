@@ -1,148 +1,20 @@
 import { useState } from "react";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
-
-// ── SVG Icon Components ──────────────────────────────────────────────────────
-
-const IconUser = ({ className = "w-5 h-5" }) => (
-  <svg
-    className={className}
-    fill="none"
-    stroke="currentColor"
-    strokeWidth={1.8}
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    viewBox="0 0 24 24"
-  >
-    <circle cx="12" cy="8" r="4" />
-    <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" />
-  </svg>
-);
-
-const IconLock = ({ className = "w-5 h-5" }) => (
-  <svg
-    className={className}
-    fill="none"
-    stroke="currentColor"
-    strokeWidth={1.8}
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    viewBox="0 0 24 24"
-  >
-    <rect x="5" y="11" width="14" height="10" rx="2" />
-    <path d="M8 11V7a4 4 0 0 1 8 0v4" />
-    <circle cx="12" cy="16" r="1.2" fill="currentColor" stroke="none" />
-  </svg>
-);
-
-const IconEye = ({ className = "w-5 h-5" }) => (
-  <svg
-    className={className}
-    fill="none"
-    stroke="currentColor"
-    strokeWidth={1.8}
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    viewBox="0 0 24 24"
-  >
-    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-    <circle cx="12" cy="12" r="3" />
-  </svg>
-);
-
-const IconEyeOff = ({ className = "w-5 h-5" }) => (
-  <svg
-    className={className}
-    fill="none"
-    stroke="currentColor"
-    strokeWidth={1.8}
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    viewBox="0 0 24 24"
-  >
-    <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94" />
-    <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19" />
-    <line x1="1" y1="1" x2="23" y2="23" />
-  </svg>
-);
-
-const IconShield = ({ className = "w-4 h-4" }) => (
-  <svg
-    className={className}
-    fill="none"
-    stroke="currentColor"
-    strokeWidth={1.8}
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    viewBox="0 0 24 24"
-  >
-    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-    <polyline points="9 12 11 14 15 10" />
-  </svg>
-);
-
-const IconArrow = ({ className = "w-5 h-5" }) => (
-  <svg
-    className={className}
-    fill="none"
-    stroke="currentColor"
-    strokeWidth={2}
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    viewBox="0 0 24 24"
-  >
-    <line x1="5" y1="12" x2="19" y2="12" />
-    <polyline points="12 5 19 12 12 19" />
-  </svg>
-);
-
-const IconCheck = ({ className = "w-5 h-5" }) => (
-  <svg
-    className={className}
-    fill="none"
-    stroke="currentColor"
-    strokeWidth={2.5}
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    viewBox="0 0 24 24"
-  >
-    <polyline points="20 6 9 17 4 12" />
-  </svg>
-);
-
-const IconAlert = ({ className = "w-4 h-4" }) => (
-  <svg
-    className={className}
-    fill="none"
-    stroke="currentColor"
-    strokeWidth={2}
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    viewBox="0 0 24 24"
-  >
-    <circle cx="12" cy="12" r="10" />
-    <line x1="12" y1="8" x2="12" y2="12" />
-    <circle cx="12" cy="16" r="0.8" fill="currentColor" stroke="none" />
-  </svg>
-);
-
-// ── Stat Card ────────────────────────────────────────────────────────────────
-
-function StatItem({ value, label, border }) {
-  return (
-    <div className={`${border ? "border-l border-white/10 pl-6" : ""} pr-6`}>
-      <div
-        className="text-[#74c69d] font-bold text-2xl mb-1"
-        style={{ fontFamily: "'Georgia', serif" }}
-      >
-        {value}
-      </div>
-      <div className="text-white/40 text-[11px] uppercase tracking-widest leading-snug">
-        {label}
-      </div>
-    </div>
-  );
-}
+import {
+  User,
+  Lock,
+  Eye,
+  EyeOff,
+  ArrowRight,
+  Check,
+  AlertCircle,
+  Clock,
+  Utensils,
+  ClipboardList,
+  HeartPulse,
+} from "lucide-react";
+import HospitalImg from "../../../frontend/public/Hospital-bg.png";
 
 // ── Main Login Component ─────────────────────────────────────────────────────
 
@@ -152,14 +24,17 @@ function Login() {
   const [showPass, setShowPass] = useState(false);
   const [remember, setRemember] = useState(false);
   const [status, setStatus] = useState("idle"); // idle | loading | success
-
+  
+  // New Password State
+  const [needsNewPassword, setNeedsNewPassword] = useState(false);
+  const [tempUserId, setTempUserId] = useState(null);
+  const [newPassForm, setNewPassForm] = useState({ newPassword: "", confirmPassword: "" });
 
   const validate = () => {
     const e = {};
     if (!form.email.trim()) e.email = "Email is required.";
     if (!form.password) e.password = "Password is required.";
-    else if (form.password.length < 2)
-      e.password = "Minimum 6 characters required.";
+    else if (form.password.length < 6) e.password = "Minimum 6 characters required.";
     return e;
   };
 
@@ -174,346 +49,349 @@ function Login() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     const errs = validate();
-    if (Object.keys(errs).length) {
-      setErrors(errs);
-      return;
+    if (Object.keys(errs).length) { setErrors(errs); return; }
+
+    try {
+      setStatus("loading");
+      const res = await axios.post(`${import.meta.env.VITE_API_BASE || "http://localhost:5050/api"}/auth/login`, form);
+      
+      // Intercept if they need to change their password
+      if (res.data.requirePasswordChange) {
+        setNeedsNewPassword(true);
+        setTempUserId(res.data.userId);
+        setStatus("idle");
+        setErrors({ general: res.data.message });
+        return; 
+      }
+
+      const { token, user } = res.data;
+
+      sessionStorage.setItem("token", token);
+      sessionStorage.setItem("user", JSON.stringify(user));
+
+      if (remember) {
+        localStorage.setItem("token", token);
+        localStorage.setItem("user", JSON.stringify(user));
+      } else {
+        localStorage.removeItem("token");
+        localStorage.removeItem("user");
+      }
+
+      setStatus("success");
+      setTimeout(() => { window.location.href = "/dashboard"; }, 500);
+    } catch (err) {
+      setStatus("idle");
+      setErrors({ general: err.response?.data?.message || "Invalid email or password." });
+    }
+  };
+
+  // Submit handler for the new password
+  const handleNewPasswordSubmit = async (e) => {
+    e.preventDefault();
+    if (!newPassForm.newPassword || newPassForm.newPassword.length < 6) {
+      return setErrors({ general: "Password must be at least 6 characters." });
+    }
+    if (newPassForm.newPassword !== newPassForm.confirmPassword) {
+      return setErrors({ general: "Passwords do not match!" });
     }
 
     try {
       setStatus("loading");
+      await axios.post(`${import.meta.env.VITE_API_BASE || "http://localhost:5050/api"}/auth/set-new-password`, {
+        userId: tempUserId,
+        newPassword: newPassForm.newPassword
+      });
 
-      const res = await axios.post(
-        "http://localhost:5050/api/auth/login",
-        form,
-      );
-
-      const { token, user } = res.data;
-
-// Always store in sessionStorage
-sessionStorage.setItem("token", token);
-
-
-// If remember is ON, also store in localStorage (optional)
-if (remember) {
-  localStorage.setItem("token", token);
-  
-} else {
-  // keep localStorage clean
-  localStorage.removeItem("token");
-  
-}
-
-      setStatus("success");
-
-      // Redirect based on role
-      if (user.role === "DIET_CLERK") {
-        navigate("/diet-dashboard");
-      } else if (user.role === "ACCOUNTANT") {
-        navigate("/accountant-dashboard");
-      } else {
-        navigate("/");
-      }
+      // Success! Reset everything back to the normal login screen
+      setStatus("idle");
+      setErrors({ general: "Success! Please log in with your new password." });
+      setNeedsNewPassword(false);
+      setForm({ ...form, password: "" }); // Clear the old password
+      setNewPassForm({ newPassword: "", confirmPassword: "" });
     } catch (err) {
       setStatus("idle");
-      setErrors({
-        general: err.response?.data?.message || "Login failed",
-      });
+      setErrors({ general: err.response?.data?.message || "Failed to update password." });
     }
   };
 
-  // ── Field helper ──
   const fieldClass = (field) =>
-    `w-full pl-12 pr-4 py-[14px] text-[15.5px] bg-white rounded-xl border-[1.5px] outline-none
-     transition-all duration-200 placeholder:text-[#b0c4b8] text-[#1a2e22]
-     ${
-       errors[field]
-         ? "border-red-300 focus:border-red-400 focus:ring-2 focus:ring-red-100"
-         : "border-[#ccddd4] focus:border-[#3a8f68] focus:ring-2 focus:ring-[#3a8f68]/[0.14]"
-     }`;
+    `w-full pl-11 pr-4 py-[13px] text-[15px] bg-white rounded-xl border outline-none
+     transition-all duration-200 placeholder:text-gray-1000 text-gray-1000
+     ${errors[field] || errors.general
+      ? "border-red-300 focus:border-red-400 focus:ring-2 focus:ring-red-100"
+      : "border-gray-400 focus:border-[#2d6a4e] focus:ring-2 focus:ring-[#2d6a4e]/10"
+    }`;
 
   return (
-    <div className="min-h-screen flex bg-[#f1f6f3]">
-      {/* ────────────── LEFT PANEL ────────────── */}
-      <div
-        className="hidden lg:flex lg:w-[46%] flex-col justify-between relative overflow-hidden"
-        style={{
-          background:
-            "linear-gradient(160deg, #1a4030 0%, #2d6a4e 58%, #3c8f68 100%)",
-        }}
-      >
-        {/* Decorative circles */}
-        <div className="absolute -top-32 -right-32 w-96 h-96 rounded-full border border-white/[0.06] pointer-events-none" />
-        <div className="absolute top-20 -right-12 w-52 h-52 rounded-full border border-white/[0.04] pointer-events-none" />
-        <div className="absolute -bottom-24 -left-24 w-80 h-80 rounded-full border border-white/[0.05] pointer-events-none" />
+    <div className="min-h-screen flex bg-[#f0f7f4]">
 
-        {/* Subtle grid */}
-        <div
-          className="absolute inset-0 opacity-[0.025] pointer-events-none"
-          style={{
-            backgroundImage:
-              "linear-gradient(#fff 1px, transparent 1px), linear-gradient(90deg, #fff 1px, transparent 1px)",
-            backgroundSize: "44px 44px",
-          }}
-        />
+      {/* ── LEFT PANEL (Desktop Only) ── */}
+      <div className="hidden lg:block lg:w-[50%] relative overflow-hidden">
+        <img
+  src={HospitalImg}
+  alt="District General Hospital Gampaha"
+  className="absolute inset-0 w-full h-full object-cover object-left"
+/>
 
-        {/* Top content */}
-        <div className="relative z-10 p-14">
-          {/* Wordmark */}
-          <div className="flex items-center gap-3 mb-16">
-            <div className="w-10 h-10 rounded-xl border border-white/20 bg-white/10 flex items-center justify-center">
-              <svg
-                className="w-5 h-5 text-white"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth={1.8}
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                viewBox="0 0 24 24"
-              >
-                <path d="M12 2a10 10 0 1 0 0 20A10 10 0 0 0 12 2z" />
-                <path d="M12 8v4l3 3" />
-              </svg>
+{/* Dark overlay */}
+<div className="absolute inset-0 bg-black/45" />
+
+<div className="absolute inset-0 flex flex-col justify-between p-10 z-10">
+          {/* ── TOP: Logo ── */}
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-white/12 border border-white/20 backdrop-blur-md flex items-center justify-center flex-shrink-0">
+              <HeartPulse className="w-5 h-5 text-white" strokeWidth={1.8} />
             </div>
-            <span
-              className="text-white text-[19px] font-semibold tracking-wide"
-              style={{ fontFamily: "'Georgia', serif" }}
-            >
-              Meal Managemt System
-            </span>
+            <div>
+              <p className="text-white text-[14.5px] font-semibold leading-tight drop-shadow">
+                District General Hospital
+              </p>
+              <p className="text-white/45 text-[10.5px] uppercase tracking-[2px]">
+                Gampaha
+              </p>
+            </div>
           </div>
 
-          <h1
-            className="text-white font-bold leading-[1.18] mb-6"
-            style={{ fontFamily: "'Georgia', serif", fontSize: "2.6rem" }}
-          >
-            Patient Nutrition,
-            <br />
-            Precisely
-            <br />
-            Managed.
-          </h1>
+          {/* ── BOTTOM: Main content area ── */}
+          <div>
+            <div className="inline-flex items-center gap-2 bg-white/10 border border-white/20 backdrop-blur-md rounded-full px-3.5 py-1.5 mb-5">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse block flex-shrink-0" />
+              <span className="text-white/75 text-[11px] font-semibold uppercase tracking-[2px]">
+                System Online
+              </span>
+            </div>
 
-          <p className="text-white/55 text-[15.5px] leading-relaxed max-w-[290px]">
-            A unified platform for ward nurses, dietitians, and kitchen teams to
-            coordinate every patient meal with accuracy and care.
-          </p>
-        </div>
+            <h1 className="text-white text-[2.6rem] font-bold leading-[1.15] mb-4 drop-shadow-md">
+              Meal Management
+              <br />
+              <span className="text-emerald-400">System</span>
+            </h1>
 
-        {/* Stats row */}
-        <div className="relative z-10 px-14 pb-14">
-          <div className="border-t border-white/10 pt-9 flex">
-            {/* <StatItem value="98%" label="On-time Delivery" border={false} />
-            <StatItem value="340+" label="Beds Supported" border />
-            <StatItem value="4.9" label="Staff Rating" border /> */}
+            <p className="text-white/55 text-[14.5px] leading-relaxed max-w-[320px] mb-8">
+              A unified platform coordinating patient nutrition across wards, dietitians, and kitchen teams.
+            </p>
+
+            <div className="flex flex-col gap-3 mb-8">
+              {[
+                { icon: <Utensils className="w-3.5 h-3.5" strokeWidth={1.8} />, label: "Real-time meal tracking per ward" },
+                { icon: <ClipboardList className="w-3.5 h-3.5" strokeWidth={1.8} />, label: "Dietitian diet plan management" },
+                { icon: <Clock className="w-3.5 h-3.5" strokeWidth={1.8} />, label: "Kitchen-to-ward coordination" },
+              ].map(({ icon, label }) => (
+                <div key={label} className="flex items-center gap-3">
+                  <div className="w-7 h-7 rounded-lg bg-emerald-500/20 border border-emerald-400/25 backdrop-blur-sm flex items-center justify-center text-emerald-400 flex-shrink-0">
+                    {icon}
+                  </div>
+                  <span className="text-white/65 text-[13.5px]">{label}</span>
+                </div>
+              ))}
+            </div>
+            
+            <p className="text-white/20 text-[11px] mt-5">
+               DGH Gampaha &nbsp;·&nbsp; 
+            </p>
           </div>
         </div>
       </div>
 
-      {/* ────────────── RIGHT PANEL ────────────── */}
-      <div className="flex-1 flex items-center justify-center px-6 py-14">
-        <div className="w-full max-w-[420px]">
+      {/* ── RIGHT PANEL (Form Area) ── */}
+      
+      <div className="flex-1 flex items-center justify-center px-4 sm:px-6 py-8 sm:py-16 bg-transparent">
+        
+        
+        <div className="w-full max-w-[480px] bg-white/90 rounded-2xl shadow-xl p-6 sm:p-10 lg:p-14 backdrop-blur-md border border-[#d2e3db] lg:scale-105">
+
           {/* Mobile logo */}
-          <div className="lg:hidden flex items-center gap-2.5 mb-10">
+          <div className="lg:hidden flex items-center gap-2.5 mb-8">
             <div className="w-9 h-9 rounded-lg bg-[#2d6a4e] flex items-center justify-center">
-              <svg
-                className="w-4 h-4 text-white"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth={1.8}
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                viewBox="0 0 24 24"
-              >
-                <path d="M12 2a10 10 0 1 0 0 20A10 10 0 0 0 12 2z" />
-                <path d="M12 8v4l3 3" />
-              </svg>
+              <HeartPulse className="w-4 h-4 text-white" strokeWidth={1.8} />
             </div>
-            <span
-              className="text-[#1a4030] text-lg font-semibold"
-              style={{ fontFamily: "'Georgia', serif" }}
-            >
-              MealCare
-            </span>
+            <span className="text-[#1a4030] text-[17px] font-semibold">DGH Gampaha</span>
           </div>
 
           {/* Heading */}
-          <div className="mb-10">
-            <p className="text-[#3a8f68] text-[11.5px] font-semibold tracking-[2px] uppercase mb-3">
+          <div className="mb-8">
+            <p className="text-[#2d6a4e] text-[11px] font-bold tracking-[2.5px] uppercase mb-2">
               Staff Portal
             </p>
-            <h2
-              className="text-[#1a2e22] font-bold mb-2"
-              style={{ fontFamily: "'Georgia', serif", fontSize: "2rem" }}
-            >
-              Welcome back
+            
+            <h2 className="text-gray-900 text-2xl sm:text-[1.9rem] font-bold mb-2 leading-tight">
+              {needsNewPassword ? "Set New Password" : "Welcome"}
             </h2>
-            <p className="text-[#617a6b] text-[15px] leading-relaxed">
-              Sign in to access the meal management dashboard.
+            <p className="text-gray-400 text-[14.5px] leading-relaxed">
+              {needsNewPassword 
+                ? "Please secure your account with a new password." 
+                : "Sign in to access the meal management dashboard."}
             </p>
           </div>
 
-          {/* General error banner */}
+          {/* Error banner */}
           {errors.general && (
-            <div className="flex items-start gap-3 bg-red-50 border border-red-200 rounded-xl px-4 py-3.5 mb-6">
-              <span className="text-red-400 mt-0.5 flex-shrink-0">
-                <IconAlert />
-              </span>
-              <p className="text-red-700 text-sm leading-snug">
+            <div className={`flex items-start gap-2.5 border rounded-xl px-4 py-3 mb-5 
+              ${errors.general.includes("Success") ? "bg-emerald-50 border-emerald-200" : "bg-red-50 border-red-200"}`}
+            >
+              {errors.general.includes("Success") 
+                ? <Check className="w-4 h-4 text-emerald-500 mt-0.5 flex-shrink-0" strokeWidth={2} />
+                : <AlertCircle className="w-4 h-4 text-red-400 mt-0.5 flex-shrink-0" strokeWidth={2} />
+              }
+              <p className={`text-[13.5px] leading-snug ${errors.general.includes("Success") ? "text-emerald-700" : "text-red-600"}`}>
                 {errors.general}
               </p>
             </div>
           )}
 
-          <form onSubmit={handleSubmit} noValidate>
-            {/* Email */}
-            <div className="mb-5">
-              <label className="block text-[13px] font-semibold text-[#243d2c] tracking-wide mb-2">
-                Email
-              </label>
-              <div className="relative">
-                <span
-                  className={`absolute left-4 top-1/2 -translate-y-1/2 transition-colors duration-200
-        ${errors.email ? "text-red-400" : form.email ? "text-[#3a8f68]" : "text-[#9ab4a2]"}`}
-                >
-                  <IconUser />
-                </span>
-
-                <input
-                  type="email"
-                  value={form.email}
-                  onChange={handleChange("email")}
-                  placeholder="e.g. test@hospital.com"
-                  autoComplete="username"
-                  className={fieldClass("email")}
-                />
+          {/* CONDITIONAL RENDERING OF FORMS */}
+          {!needsNewPassword ? (
+            
+            /* ── EXISTING LOGIN FORM ── */
+            <form onSubmit={handleSubmit} noValidate className="space-y-4">
+              <div>
+                <label className="block text-[13px] font-semibold text-gray-700 mb-1.5">Email address</label>
+                <div className="relative">
+                  <span className={`absolute left-3.5 top-1/2 -translate-y-1/2 transition-colors duration-200
+                    ${errors.email ? "text-red-400" : form.email ? "text-[#2d6a4e]" : "text-gray-600"}`}>
+                    <User className="w-4 h-4" strokeWidth={1.8} />
+                  </span>
+                  <input
+                    type="email"
+                    value={form.email}
+                    onChange={handleChange("email")}
+                    placeholder="Enter Your Email"
+                    autoComplete="username"
+                    className={fieldClass("email")}
+                  />
+                </div>
+                {errors.email && <p className="mt-1.5 text-xs text-red-500">{errors.email}</p>}
               </div>
 
-              {errors.email && (
-                <p className="mt-1.5 text-xs text-red-500 pl-0.5">
-                  {errors.email}
-                </p>
-              )}
-            </div>
+              <div>
+                <label className="block text-[13px] font-semibold text-gray-700 mb-1.5">Password</label>
+                <div className="relative">
+                  <span className={`absolute left-3.5 top-1/2 -translate-y-1/2 transition-colors duration-200
+                    ${errors.password ? "text-red-400" : form.password ? "text-[#2d6a4e]" : "text-gray-600"}`}>
+                    <Lock className="w-4 h-4" strokeWidth={1.8} />
+                  </span>
+                  <input
+                    type={showPass ? "text" : "password"}
+                    value={form.password}
+                    onChange={handleChange("password")}
+                    placeholder="Enter your password"
+                    autoComplete="current-password"
+                    className={`${fieldClass("password")} pr-11`}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPass((v) => !v)}
+                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-600 hover:text-[#2d6a4e] transition-colors duration-200 p-0.5"
+                  >
+                    {showPass ? <EyeOff className="w-4 h-4" strokeWidth={1.8} /> : <Eye className="w-4 h-4" strokeWidth={1.8} />}
+                  </button>
+                </div>
+                {errors.password && <p className="mt-1.5 text-xs text-red-500">{errors.password}</p>}
+              </div>
 
-            {/* Password */}
-            <div className="mb-6">
-              <label className="block text-[13px] font-semibold text-[#243d2c] tracking-wide mb-2">
-                Password
-              </label>
-              <div className="relative">
-                <span
-                  className={`absolute left-4 top-1/2 -translate-y-1/2 transition-colors duration-200
-                  ${errors.password ? "text-red-400" : form.password ? "text-[#3a8f68]" : "text-[#9ab4a2]"}`}
+              
+              <div className="flex flex-wrap items-center justify-between pt-1 gap-y-3">
+                <label className="flex items-center gap-2 cursor-pointer select-none">
+                  <div
+                    onClick={() => setRemember((v) => !v)}
+                    className={`w-[18px] h-[18px] rounded-md border-[1.5px] flex items-center justify-center transition-all duration-200 cursor-pointer flex-shrink-0
+                      ${remember ? "bg-[#2d6a4e] border-[#2d6a4e]" : "bg-white border-gray-600 hover:border-[#2d6a4e]"}`}
+                  >
+                    {remember && <Check className="w-3 h-3 text-white" strokeWidth={3} />}
+                  </div>
+                  <span className="text-[13.5px] text-gray-600">Keep me signed in</span>
+                </label>
+                <button 
+                  type="button" 
+                  onClick={() => setErrors({ general: "To reset your password, please contact the System Administrator or IT Support. They will provide you with a temporary login." })}
+                  className="text-[13.5px] font-semibold text-[#2d6a4e] hover:text-[#1a4030] transition-colors duration-200"
                 >
-                  <IconLock />
-                </span>
-                <input
-                  type={showPass ? "text" : "password"}
-                  value={form.password}
-                  onChange={handleChange("password")}
-                  placeholder="Enter your password"
-                  autoComplete="current-password"
-                  className={`${fieldClass("password")} pr-12`}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPass((v) => !v)}
-                  aria-label={showPass ? "Hide password" : "Show password"}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-[#9ab4a2] hover:text-[#3a8f68] transition-colors duration-200 p-0.5"
-                >
-                  {showPass ? <IconEyeOff /> : <IconEye />}
+                  Forgot password?
                 </button>
               </div>
-              {errors.password && (
-                <p className="mt-1.5 text-xs text-red-500 pl-0.5">
-                  {errors.password}
-                </p>
-              )}
-            </div>
 
-            {/* Remember + Forgot */}
-            <div className="flex items-center justify-between mb-8">
-              <label className="flex items-center gap-2.5 cursor-pointer select-none">
-                <div
-                  onClick={() => setRemember((v) => !v)}
-                  className={`w-5 h-5 rounded-md border-2 flex items-center justify-center transition-all duration-200 cursor-pointer
-                    ${
-                      remember
-                        ? "bg-[#2d6a4e] border-[#2d6a4e]"
-                        : "bg-white border-[#ccddd4] hover:border-[#3a8f68]"
+              <div className="pt-2">
+                <button
+                  type="submit"
+                  disabled={status === "loading" || status === "success"}
+                  className={`w-full py-[13px] rounded-xl text-white font-semibold text-[15.5px]
+                    flex items-center justify-center gap-2 transition-all duration-200
+                    ${status === "success"
+                      ? "bg-emerald-600 cursor-default"
+                      : status === "loading"
+                        ? "bg-[#2d6a4e] opacity-70 cursor-wait"
+                        : "bg-[#2d6a4e] hover:bg-[#245a40] active:scale-[0.99] shadow-sm hover:shadow-lg hover:shadow-[#2d6a4e]/20"
                     }`}
                 >
-                  {remember && <IconCheck className="w-3 h-3 text-white" />}
+                  {status === "loading" && <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />}
+                  {status === "success" && <Check className="w-4 h-4" strokeWidth={2.5} />}
+                  {status === "loading" ? "Signing in…" : status === "success" ? "Welcome back!" : <><span>Sign In</span><ArrowRight className="w-4 h-4" strokeWidth={2} /></>}
+                </button>
+              </div>
+            </form>
+
+          ) : (
+
+            /* ── NEW PASSWORD FORM ── */
+            <form onSubmit={handleNewPasswordSubmit} noValidate className="space-y-4">
+              <div>
+                <label className="block text-[13px] font-semibold text-gray-700 mb-1.5">New Password</label>
+                <div className="relative">
+                  <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-600"><Lock className="w-4 h-4" /></span>
+                  <input
+                    type={showPass ? "text" : "password"}
+                    value={newPassForm.newPassword}
+                    onChange={(e) => setNewPassForm(p => ({ ...p, newPassword: e.target.value }))}
+                    className={`${fieldClass("password")} pr-11`}
+                    placeholder="Enter new password"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPass((v) => !v)}
+                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-600 hover:text-[#2d6a4e] transition-colors duration-200 p-0.5"
+                  >
+                    {showPass ? <EyeOff className="w-4 h-4" strokeWidth={1.8} /> : <Eye className="w-4 h-4" strokeWidth={1.8} />}
+                  </button>
                 </div>
-                <span className="text-[14.5px] text-[#4e6a59]">
-                  Keep me signed in
-                </span>
-              </label>
+              </div>
+              
+              <div>
+                <label className="block text-[13px] font-semibold text-gray-700 mb-1.5">Confirm New Password</label>
+                <div className="relative">
+                  <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-600"><Lock className="w-4 h-4" /></span>
+                  <input
+                    type={showPass ? "text" : "password"}
+                    value={newPassForm.confirmPassword}
+                    onChange={(e) => setNewPassForm(p => ({ ...p, confirmPassword: e.target.value }))}
+                    className={`${fieldClass("password")} pr-11`}
+                    placeholder="Confirm new password"
+                  />
+                </div>
+              </div>
+              
+              <div className="pt-2">
+                <button
+                  type="submit"
+                  disabled={status === "loading"}
+                  className="w-full py-[13px] rounded-xl text-white font-semibold text-[15.5px] bg-[#2d6a4e] hover:bg-[#245a40] transition-all duration-200 flex items-center justify-center gap-2"
+                >
+                  {status === "loading" && <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />}
+                  {status === "loading" ? "Saving..." : "Save New Password"}
+                </button>
+                <button 
+                  type="button" 
+                  onClick={() => {
+                    setNeedsNewPassword(false);
+                    setErrors({});
+                  }}
+                  className="w-full mt-3 py-2 text-[13px] text-gray-500 hover:text-gray-700 font-semibold transition-colors"
+                >
+                  Cancel and return to Login
+                </button>
+              </div>
+            </form>
+          )}
 
-              <button
-                type="button"
-                className="text-[14.5px] font-semibold text-[#3a8f68] hover:text-[#1a4030] transition-colors duration-200"
-              >
-                Forgot password?
-              </button>
-            </div>
-
-            {/* Submit button */}
-            <button
-              type="submit"
-              disabled={status === "loading" || status === "success"}
-              className={`
-                w-full py-[15px] rounded-xl text-white font-semibold text-[16px] tracking-wide
-                flex items-center justify-center gap-2.5 transition-all duration-200
-                ${
-                  status === "success"
-                    ? "bg-[#40916c] cursor-default"
-                    : status === "loading"
-                      ? "opacity-75 cursor-wait"
-                      : "hover:-translate-y-0.5 active:translate-y-0 hover:shadow-[0_10px_30px_rgba(27,64,48,0.3)]"
-                }
-              `}
-              style={{
-                background:
-                  status === "success"
-                    ? "#40916c"
-                    : "linear-gradient(135deg, #2d6a4e 0%, #1a4030 100%)",
-                boxShadow:
-                  status !== "success"
-                    ? "0 4px 20px rgba(27,64,48,0.28)"
-                    : "none",
-              }}
-            >
-              {status === "loading" && (
-                <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-              )}
-              {status === "success" && <IconCheck />}
-              {status === "loading" ? (
-                "Signing in…"
-              ) : status === "success" ? (
-                "Welcome back!"
-              ) : (
-                <>
-                  <span>Sign In</span>
-                  <IconArrow />
-                </>
-              )}
-            </button>
-          </form>
-
-          {/* Footer */}
-          <div className="mt-8 pt-7 border-t border-[#d4e8da] flex items-center justify-center gap-2 text-[13.5px] text-[#7a9487]">
-            <IconShield />
-            <span>
-              Need access?{" "}
-              <a
-                href="#"
-                className="font-semibold text-[#3a8f68] hover:text-[#1a4030] transition-colors duration-200"
-              >
-                Contact IT Support
-              </a>
-            </span>
-          </div>
         </div>
       </div>
     </div>

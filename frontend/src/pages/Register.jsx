@@ -31,7 +31,7 @@ function Register() {
     e.preventDefault();
 
     try {
-      const res = await axios.post("http://localhost:5050/api/auth/register", form);
+      const res = await axios.post(`${import.meta.env.VITE_API_BASE || "http://localhost:5050/api"}/auth/register`, form);
       setMessage("User registered successfully!");
       console.log(res.data);
     } catch (err) {

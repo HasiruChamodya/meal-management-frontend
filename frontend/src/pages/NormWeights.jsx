@@ -3,21 +3,37 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useToast } from "@/hooks/use-toast";
-import { Save } from "lucide-react";
+import { Save, Check, ChevronsUpDown } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 const MEALS = ["breakfast", "lunch", "dinner"];
 
-const API_ITEMS = "http://localhost:5050/api/items";
-const API_WEIGHTS = "http://localhost:5050/api/norm-weights";
-const API_DIET_TYPES = "http://localhost:5050/api/diet-types"; // New fetch!
+const API_BASE = `${import.meta.env.VITE_API_BASE || "http://localhost:5050/api"}`;
+const API_ITEMS = `${API_BASE}/items`;
+const API_WEIGHTS = `${API_BASE}/norm-weights`;
+const API_DIET_TYPES = `${API_BASE}/diet-types`; 
 
 const getAuthHeaders = () => ({
   "Content-Type": "application/json",
   Authorization: `Bearer ${sessionStorage.getItem("token")}`,
 });
+
+// 👇 Updated mapping: Only convert standard bulk weights/volumes.
+// Everything else (Pkt, Bottle, 100g, 1 loaf, Pcs, etc.) falls back to its exact name!
+const UNIT_TO_BASE_LABEL = {
+  "Kg": "g (Grams)",
+  "g": "g (Grams)",
+  "L": "ml (Milliliters)",
+  "ml": "ml (Milliliters)",
+};
+
+const getBaseUnitLabel = (displayUnit) => {
+  return UNIT_TO_BASE_LABEL[displayUnit] || displayUnit;
+};
 
 const NormWeights = () => {
   const { toast } = useToast();
@@ -27,11 +43,11 @@ const NormWeights = () => {
   const [weights, setWeights] = useState([]);
   
   const [selectedItem, setSelectedItem] = useState("");
+  const [searchOpen, setSearchOpen] = useState(false);
   const [changed, setChanged] = useState(new Set());
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
 
-  // Load Items, Diet Types, and initial weights
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -48,7 +64,9 @@ const NormWeights = () => {
         const weightsData = await weightsRes.json();
         const dietsData = await dietsRes.json();
 
-        setItems(itemsData.items || []);
+        // Only show items that use norm_weight calculation (exclude raw_sum extras)
+        const filteredItems = (itemsData.items || []).filter((i) => i.calcType !== "raw_sum");
+        setItems(filteredItems);
         setWeights(weightsData.weights || []);
         
         // Filter active diets and sort them by the displayOrder set by the Admin
@@ -59,8 +77,8 @@ const NormWeights = () => {
         setDietTypes(activeDiets);
         
         // Auto-select the first item
-        if (itemsData.items?.length > 0) {
-          setSelectedItem(String(itemsData.items[0].id));
+        if (filteredItems.length > 0) {
+          setSelectedItem(String(filteredItems[0].id));
         }
       } catch (error) {
         toast({ title: "Error", description: error.message, variant: "destructive" });
@@ -122,6 +140,11 @@ const NormWeights = () => {
     }
   };
 
+  // Alphabetically sort items for the dropdown
+  const sortedItems = [...items].sort((a, b) => 
+    (a.nameEn || "").localeCompare(b.nameEn || "")
+  );
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -130,20 +153,59 @@ const NormWeights = () => {
 
       <Card>
         <CardContent className="pt-4">
-          <div className="max-w-md">
+          <div className="max-w-md space-y-2">
             <Label className="text-label font-semibold">Select Item</Label>
-            <Select value={selectedItem} onValueChange={setSelectedItem} disabled={loading}>
-              <SelectTrigger className="h-12">
-                <SelectValue placeholder={loading ? "Loading items..." : "Select an item"} />
-              </SelectTrigger>
-              <SelectContent>
-                {items.map((i) => (
-                  <SelectItem key={i.id} value={String(i.id)}>
-                    {i.nameSi} / {i.nameEn} ({i.unit})
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            
+            <Popover open={searchOpen} onOpenChange={setSearchOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  role="combobox"
+                  aria-expanded={searchOpen}
+                  className="w-full justify-between h-12 text-base touch-target border-slate-300 focus:ring-primary/20"
+                  disabled={loading}
+                >
+                  <span className="truncate pr-2">
+                    {currentItem 
+                      ? `${currentItem.nameEn} (${currentItem.nameSi}) — ${currentItem.unit}`
+                      : loading ? "Loading items..." : "Search and select an item..."}
+                  </span>
+                  <ChevronsUpDown className="ml-2 h-5 w-5 shrink-0 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0 shadow-xl border border-slate-300 z-50 bg-background" align="start">
+                <Command>
+                  <CommandInput placeholder="Search item by English or Sinhala name..." className="h-11 text-base border-none focus:ring-0" />
+                  <CommandList className="max-h-[300px]">
+                    <CommandEmpty className="py-6 text-center text-base">No item found.</CommandEmpty>
+                    <CommandGroup>
+                      {sortedItems.map((item) => (
+                        <CommandItem
+                          key={item.id}
+                          value={`${item.nameEn} ${item.nameSi}`}
+                          onSelect={() => {
+                            setSelectedItem(String(item.id));
+                            setSearchOpen(false);
+                          }}
+                          className="text-base py-2.5 cursor-pointer"
+                        >
+                          <Check
+                            className={cn(
+                              "mr-3 h-5 w-5 text-primary flex-shrink-0",
+                              selectedItem === String(item.id) ? "opacity-100" : "opacity-0"
+                            )}
+                          />
+                          <span className="truncate">
+                            {item.nameEn} <span className="text-muted-foreground ml-1">({item.nameSi})</span>
+                          </span>
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
+
           </div>
         </CardContent>
       </Card>
@@ -151,8 +213,12 @@ const NormWeights = () => {
       {currentItem && (
         <Card>
           <CardHeader>
-            <CardTitle className="text-label font-semibold">
-              {currentItem.nameSi} / {currentItem.nameEn} — Norm Weights ({currentItem.unit === "Kg" ? "Grams" : currentItem.unit})
+            {/* 👇 Updated Title to show the exact required input unit */}
+            <CardTitle className="text-label font-semibold flex items-center flex-wrap gap-2">
+              {currentItem.nameSi} / {currentItem.nameEn} — Norm Weights
+              <span className="text-primary bg-primary/10 px-2 py-1 rounded-md text-sm">
+                (Enter in: {getBaseUnitLabel(currentItem.unit)})
+              </span>
             </CardTitle>
           </CardHeader>
           <CardContent className="overflow-x-auto">

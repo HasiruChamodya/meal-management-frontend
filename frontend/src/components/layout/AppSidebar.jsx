@@ -23,11 +23,18 @@ const AppSidebar = () => {
 
   if (!user) return null;
 
-  const navItems = Object.values(NAV_ITEMS).flat();
+  const role = user.role?.toUpperCase();
 
-  const uniqueNavItems = navItems.filter(
-    (item, index, self) => index === self.findIndex((x) => x.url === item.url)
-  );
+  const navItems = NAV_ITEMS[role] || [];
+
+  const activeItemUrl =
+    navItems
+      .filter(
+        (item) =>
+          location.pathname === item.url ||
+          location.pathname.startsWith(item.url + "/")
+      )
+      .sort((a, b) => b.url.length - a.url.length)[0]?.url || null;
 
   return (
     <Sidebar collapsible="icon" className="border-r-0">
@@ -39,7 +46,10 @@ const AppSidebar = () => {
         {!collapsed && (
           <div className="flex flex-col min-w-0">
             <span className="text-sm font-bold text-sidebar-foreground truncate">
-              Meal Management
+              Meal Management 
+            </span>
+            <span className="text-sm font-bold text-sidebar-foreground truncate">
+              System 
             </span>
             <span className="text-[10px] text-sidebar-foreground/60 truncate">
               DGH Gampaha
@@ -58,8 +68,8 @@ const AppSidebar = () => {
 
           <SidebarGroupContent>
             <SidebarMenu>
-              {uniqueNavItems.map((item) => {
-                const isActive = location.pathname === item.url;
+              {navItems.map((item) => {
+                const isActive = activeItemUrl === item.url;
 
                 return (
                   <SidebarMenuItem key={item.url}>
@@ -67,15 +77,12 @@ const AppSidebar = () => {
                       asChild
                       isActive={isActive}
                       tooltip={item.title}
-                      className={
-                        isActive
-                          ? "bg-sidebar-accent text-sidebar-primary font-semibold border-l-[3px] border-sidebar-primary rounded-none"
-                          : "text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-foreground border-l-[3px] border-transparent"
-                      }
                     >
                       <Link to={item.url} className="touch-target">
                         <item.icon className="h-5 w-5 shrink-0" />
-                        {!collapsed && <span className="text-sm">{item.title}</span>}
+                        {!collapsed && (
+                          <span className="text-sm">{item.title}</span>
+                        )}
                       </Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>

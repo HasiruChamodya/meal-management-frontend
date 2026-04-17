@@ -1,4 +1,5 @@
 import * as React from "react";
+import { getTodaySL } from "./date-utils";
 
 // ─── Ward Data ───
 export const WARDS = [
@@ -84,7 +85,7 @@ export const MOCK_SUBMISSIONS = [
     id: "sub-1",
     wardId: "WD1",
     wardName: "Medical M",
-    date: new Date().toISOString().split("T")[0],
+    date: getTodaySL(),
     diets: { normal: 10, diabetic: 4, breakfastExtra: 0, s1: 0, s2: 0, s3: 0, s4: 0, s5: 0, hpd: 0 },
     staff: { breakfast: 2, lunch: 5, dinner: 0 },
     special: { soupKanda: 0, polSambola: 0 },
@@ -104,7 +105,7 @@ export const MOCK_SUBMISSIONS = [
     id: "sub-2",
     wardId: "WD2",
     wardName: "Medical F",
-    date: new Date().toISOString().split("T")[0],
+    date: getTodaySL(),
     diets: { normal: 8, diabetic: 2, breakfastExtra: 1, s1: 0, s2: 0, s3: 0, s4: 0, s5: 0, hpd: 0 },
     staff: { breakfast: 1, lunch: 3, dinner: 2 },
     special: { soupKanda: 2, polSambola: 3 },
@@ -117,7 +118,7 @@ export const MOCK_SUBMISSIONS = [
     id: "sub-3",
     wardId: "WD3",
     wardName: "Eye",
-    date: new Date().toISOString().split("T")[0],
+    date: getTodaySL(),
     diets: { normal: 0, diabetic: 0, breakfastExtra: 0, s1: 0, s2: 0, s3: 0, s4: 0, s5: 0, hpd: 0 },
     staff: { breakfast: 0, lunch: 0, dinner: 0 },
     special: { soupKanda: 0, polSambola: 0 },

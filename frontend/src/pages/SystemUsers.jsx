@@ -27,9 +27,10 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Edit2, KeyRound, UserX } from "lucide-react";
+// 👇 Added UserCheck here for the activation icon
+import { Plus, Edit2, KeyRound, UserX, UserCheck } from "lucide-react";
 
-const API_BASE = "http://localhost:5050/api/users";
+const API_BASE = `${import.meta.env.VITE_API_BASE || "http://localhost:5050/api"}/users`;
 
 const getAuthHeaders = () => {
   const token = sessionStorage.getItem("token");
@@ -39,10 +40,11 @@ const getAuthHeaders = () => {
   };
 };
 
+// Updated with rich theme colors
 const STATUS_STYLE = {
-  active: "bg-primary/20 text-primary",
-  deactivated: "bg-muted text-muted-foreground",
-  locked: "bg-destructive/20 text-destructive",
+  active: "bg-success text-success-foreground hover:bg-success border-transparent font-medium",
+  deactivated: "bg-error-bg text-destructive hover:bg-error-bg border-transparent font-medium",
+  locked: "bg-destructive/20 text-destructive hover:bg-destructive/20 border-transparent font-medium",
 };
 
 const emptyUser = {
@@ -229,6 +231,13 @@ const SystemUsers = () => {
     }
   };
 
+  // Sort users: Active users at the top, deactivated at the bottom
+  const sortedUsers = [...users].sort((a, b) => {
+    if (a.status === "active" && b.status !== "active") return -1;
+    if (a.status !== "active" && b.status === "active") return 1;
+    return 0;
+  });
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -250,97 +259,92 @@ const SystemUsers = () => {
           ) : (
             <Table>
               <TableHeader>
-                <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead className="hidden md:table-cell">Email</TableHead>
-                  <TableHead>Role</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="hidden sm:table-cell">
-                    Last Login
-                  </TableHead>
-                  <TableHead>Actions</TableHead>
+                {/* Cleaned up hard-coded border colors to rely on theme default */}
+                <TableRow className="text-lg">
+                  <TableHead className="font-semibold text-foreground text-center">Name</TableHead>
+                  <TableHead className="hidden md:table-cell font-semibold text-foreground text-center">Email</TableHead>
+                  <TableHead className="font-semibold text-foreground text-center">Role</TableHead>
+                  <TableHead className="font-semibold text-foreground text-center">Status</TableHead>
+                  <TableHead className="hidden sm:table-cell font-semibold text-foreground text-center">Last Login</TableHead>
+                  <TableHead className="font-semibold text-foreground text-center">Actions</TableHead>
                 </TableRow>
               </TableHeader>
 
               <TableBody>
-                {users.map((u) => (
-                  <TableRow key={u.id}>
-                    <TableCell className="font-medium">{u.name}</TableCell>
+                {sortedUsers.map((u) => (
+                  <TableRow 
+                    key={u.id} 
+                    /* Cleaned up hard-coded background colors to use the theme's muted hover */
+                    className="text-lg hover:bg-muted/50 transition-colors cursor-pointer"
+                  >
+                    <TableCell className="font-medium py-5 text-center">{u.name}</TableCell>
 
-                    <TableCell className="hidden md:table-cell text-muted-foreground">
+                    <TableCell className="hidden md:table-cell text-muted-foreground py-5 text-center">
                       {u.email}
                     </TableCell>
 
-                    <TableCell>
-                      <Badge className="bg-muted text-muted-foreground">
-                        {formatRoleLabel(u.role)}
+                    <TableCell className="py-5 text-center">
+                      <Badge className="bg-muted text-muted-foreground hover:bg-muted border-transparent text-base px-3 py-1">
+                       {formatRoleLabel(u.role)}
                       </Badge>
                     </TableCell>
 
-                    <TableCell>
+                    <TableCell className="py-5 text-center">
                       <Badge
-                        className={
+                        className={`text-base px-3 py-1 ${
                           STATUS_STYLE[u.status] || STATUS_STYLE.deactivated
-                        }
+                        }`}
                       >
-                        {u.status}
+                        {u.status.charAt(0).toUpperCase() + u.status.slice(1)}
                       </Badge>
                     </TableCell>
 
-                    <TableCell className="hidden sm:table-cell text-sm text-muted-foreground">
+                    <TableCell className="hidden sm:table-cell text-muted-foreground py-5 text-center">
                       {u.lastLogin || "Never"}
                     </TableCell>
 
-                    <TableCell>
-                      <div className="flex gap-1">
+                    <TableCell className="py-5">
+                      <div className="flex justify-center gap-2">
+                        
                         <Button
+                          title="Edit User"
                           variant="ghost"
                           size="icon"
                           onClick={() => {
                             setIsNew(false);
-                            setEdit({
-                              id: u.id,
-                              name: u.name,
-                              email: u.email,
-                              role: u.role,
-                              status: u.status,
-                              lastLogin: u.lastLogin || "Never",
-                            });
+                            setEdit({ ...u });
                           }}
                         >
-                          <Edit2 className="h-4 w-4" />
+                          <Edit2 className="h-5 w-5" />
                         </Button>
 
                         <Button
+                          title="Reset Password"
                           variant="ghost"
                           size="icon"
                           onClick={() => resetPassword(u)}
                         >
-                          <KeyRound className="h-4 w-4" />
+                          <KeyRound className="h-5 w-5" />
                         </Button>
 
+                        {/* 👇 Updated to dynamically switch icons and colors based on status */}
                         <Button
+                          title={u.status === "active" ? "Deactivate User" : "Activate User"}
                           variant="ghost"
                           size="icon"
                           onClick={() => toggleStatus(u)}
                         >
-                          <UserX className="h-4 w-4 text-destructive" />
+                          {u.status === "active" ? (
+                            <UserX className="h-5 w-5 text-destructive" />
+                          ) : (
+                            <UserCheck className="h-5 w-5 text-primary" />
+                          )}
                         </Button>
+
                       </div>
                     </TableCell>
                   </TableRow>
                 ))}
-
-                {users.length === 0 && (
-                  <TableRow>
-                    <TableCell
-                      colSpan={6}
-                      className="text-center text-muted-foreground py-6"
-                    >
-                      No users found
-                    </TableCell>
-                  </TableRow>
-                )}
               </TableBody>
             </Table>
           )}

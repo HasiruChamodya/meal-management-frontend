@@ -1,4 +1,4 @@
-// ─── MealFlow Mock Data (Self-Contained) ───
+
 
 // ─── PO Categories (inlined — was imported from calculation-data) ───
 // NOTE: If your components import MOCK_PO_CATEGORIES from calculation-data,

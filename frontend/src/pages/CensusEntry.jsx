@@ -12,20 +12,22 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useToast } from "@/hooks/use-toast";
-import { AlertTriangle, CalendarDays, Check, ChevronDown, ChevronRight, ChevronsUpDown, HelpCircle, Plus, Save, Send } from "lucide-react";
+import { AlertTriangle, CalendarDays, Check, ChevronDown, ChevronRight, ChevronsUpDown, HelpCircle, Plus, Save, Search, Send } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { getTodaySL } from "@/lib/date-utils";
 
-const API_BASE = "http://localhost:5050/api/census";
-const WARDS_API = "http://localhost:5050/api/wards";
-const ITEMS_API = "http://localhost:5050/api/items";
-const DIET_TYPES_API = "http://localhost:5050/api/diet-types";
+const API_BASE = `${import.meta.env.VITE_API_BASE || "http://localhost:5050/api"}/census`;
+const WARDS_API = `${import.meta.env.VITE_API_BASE || "http://localhost:5050/api"}/wards`;
+const ITEMS_API = `${import.meta.env.VITE_API_BASE || "http://localhost:5050/api"}/items`;
+const DIET_TYPES_API = `${import.meta.env.VITE_API_BASE || "http://localhost:5050/api"}/diet-types`;
+const RECIPES_API = `${import.meta.env.VITE_API_BASE || "http://localhost:5050/api"}/recipes`;
 
 const getAuthHeaders = () => {
   const token = sessionStorage.getItem("token");
   return { "Content-Type": "application/json", Authorization: `Bearer ${token}` };
 };
 
-const today = new Date().toISOString().split("T")[0];
+const today = getTodaySL();
 
 const statusConfig = {
   not_started: { label: "Not Submitted", className: "bg-muted text-muted-foreground" },
@@ -36,7 +38,7 @@ const statusConfig = {
 
 const getDietKey = (diet) => String(diet.code || diet.id);
 
-const NumField = ({ value, onChange, onEnter, inputRef, className = "", disabled }) => {
+const NumField = ({ value, onChange, onEnter, inputRef, className, disabled }) => {
   const handleKeyDown = (e) => {
     if (e.key === "Enter") {
       e.preventDefault();
@@ -56,7 +58,10 @@ const NumField = ({ value, onChange, onEnter, inputRef, className = "", disabled
         if (/^\d*$/.test(raw)) onChange(raw);
       }}
       onKeyDown={handleKeyDown}
-      className={`h-11 text-input text-center w-24 touch-target ${className}`}
+      className={cn(
+        "w-24 h-12 text-lg font-semibold text-center text-foreground touch-target focus-visible:ring-0 focus-visible:ring-offset-0",
+        className
+      )}
     />
   );
 };
@@ -69,12 +74,13 @@ const CensusEntryPage = () => {
   const [wardStatuses, setWardStatuses] = useState([]);
   const [extraItemsMaster, setExtraItemsMaster] = useState([]);
   const [dietTypes, setDietTypes] = useState([]);
+  const [recipesMaster, setRecipesMaster] = useState([]);
 
   const [wardId, setWardId] = useState("");
   const [wardSearchOpen, setWardSearchOpen] = useState(false);
 
   const [diets, setDiets] = useState({});
-  const [special, setSpecial] = useState({ soup: "", kanda: "", polSambola: "" });
+  const [special, setSpecial] = useState({});
   const [extras, setExtras] = useState({});
   const [customExtras, setCustomExtras] = useState([]);
 
@@ -84,6 +90,7 @@ const CensusEntryPage = () => {
   const [status, setStatus] = useState("not_started");
 
   const [extrasOpen, setExtrasOpen] = useState(false);
+  const [extraSearchQuery, setExtraSearchQuery] = useState(""); // 👈 Added state for search bar
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [addItemOpen, setAddItemOpen] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -137,7 +144,6 @@ const CensusEntryPage = () => {
     if (!res.ok) throw new Error(data.message || "Failed to fetch diet types");
 
     return (data.dietTypes || [])
-      // THE FIX: Filter out any diet type marked as "Staff" so it doesn't show in the ward form
       .filter(diet => diet.active && diet.type !== "Staff")
       .map((diet) => ({
         ...diet,
@@ -152,7 +158,7 @@ const CensusEntryPage = () => {
     const res = await fetch(WARDS_API, { headers: getAuthHeaders() });
     const data = await res.json();
     if (!res.ok) throw new Error(data.message || "Failed to fetch wards");
-    return data.wards || [];
+    return (data.wards || []).filter(ward => ward.active); 
   };
 
   const fetchStatuses = async () => {
@@ -167,7 +173,14 @@ const CensusEntryPage = () => {
     const data = await res.json();
     if (!res.ok) throw new Error(data.message || "Failed to fetch items");
 
-    return (data.items || []).map((item) => ({ id: item.id, name: item.nameEn, unit: item.unit }));
+    return (data.items || []).filter((item) => item.isExtra).map((item) => ({ id: item.id, name: item.nameEn, unit: item.unit }));
+  };
+
+  const fetchRecipes = async () => {
+    const res = await fetch(RECIPES_API, { headers: getAuthHeaders() });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.message || "Failed to fetch recipes");
+    return (data.recipes || []).map((r) => ({ id: r.id, key: r.recipeKey, name: r.name }));
   };
 
   const fetchStaffMeals = async () => {
@@ -192,16 +205,21 @@ const CensusEntryPage = () => {
     const loadInitial = async () => {
       try {
         setLoading(true);
-        const [wardsData, statusesData, itemsData, dietTypesData] = await Promise.all([
-          fetchWards(), fetchStatuses(), fetchExtraItems(), fetchDietTypes(),
+        const [wardsData, statusesData, itemsData, dietTypesData, recipesData] = await Promise.all([
+          fetchWards(), fetchStatuses(), fetchExtraItems(), fetchDietTypes(), fetchRecipes(),
         ]);
 
         setWards(wardsData);
         setExtraItemsMaster(itemsData);
         setDietTypes(dietTypesData);
+        setRecipesMaster(recipesData);
         setExtras(initExtrasObject(itemsData));
         setDiets(buildEmptyDiets(dietTypesData));
         setWardStatuses(normalizeWardStatuses(statusesData, wardsData));
+
+        const emptySpecial = {};
+        for (const r of recipesData) { emptySpecial[r.key] = ""; }
+        setSpecial(emptySpecial);
 
         await fetchStaffMeals();
       } catch (error) {
@@ -227,11 +245,13 @@ const CensusEntryPage = () => {
         if (data.census) {
           const normalizedDiets = Object.fromEntries(Object.entries(data.census.diets || {}).map(([k, v]) => [String(k), String(v ?? "")]));
           setDiets({ ...buildEmptyDiets(dietTypes), ...normalizedDiets });
-          setSpecial({
-            soup: String(data.census.special?.soup ?? ""),
-            kanda: String(data.census.special?.kanda ?? ""),
-            polSambola: String(data.census.special?.polSambola ?? ""),
-          });
+
+          const loadedSpecial = {};
+          for (const r of recipesMaster) {
+            loadedSpecial[r.key] = String(data.census.special?.[r.key] ?? "");
+          }
+          setSpecial(loadedSpecial);
+
           setExtras({
             ...initExtrasObject(extraItemsMaster),
             ...Object.fromEntries(Object.entries(data.census.extras || {}).map(([k, v]) => [k, String(v ?? "")])),
@@ -240,7 +260,11 @@ const CensusEntryPage = () => {
           setStatus(data.census.status || "not_started");
         } else {
           setDiets(buildEmptyDiets(dietTypes));
-          setSpecial({ soup: "", kanda: "", polSambola: "" });
+
+          const emptySpec = {};
+          for (const r of recipesMaster) { emptySpec[r.key] = ""; }
+          setSpecial(emptySpec);
+
           setExtras(initExtrasObject(extraItemsMaster));
           setCustomExtras([]);
           setStatus("not_started");
@@ -249,7 +273,7 @@ const CensusEntryPage = () => {
         toast({ title: "Error", description: error.message || "Failed to load ward data", variant: "destructive" });
       }
     },
-    [buildEmptyDiets, dietTypes, extraItemsMaster, initExtrasObject, toast]
+    [buildEmptyDiets, dietTypes, extraItemsMaster, recipesMaster, initExtrasObject, toast]
   );
 
   const saveDraft = async () => {
@@ -344,19 +368,43 @@ const CensusEntryPage = () => {
 
   let refIdx = 0;
 
+  const sortedWardStatuses = useMemo(() => {
+    return [...wardStatuses].sort((a, b) => {
+      return (a.ward.code || "").localeCompare(b.ward.code || "", undefined, { numeric: true, sensitivity: 'base' });
+    });
+  }, [wardStatuses]);
+
+  const sortedWardsForDropdown = useMemo(() => {
+    return [...wards].sort((a, b) => {
+      return (a.code || "").localeCompare(b.code || "", undefined, { numeric: true, sensitivity: 'base' });
+    });
+  }, [wards]);
+
+  // 👇 Added filtering logic for the search bar
+  const filteredExtraItems = useMemo(() => {
+    if (!extraSearchQuery.trim()) return extraItemsMaster;
+    return extraItemsMaster.filter((item) => item.name.toLowerCase().includes(extraSearchQuery.toLowerCase()));
+  }, [extraItemsMaster, extraSearchQuery]);
+
+  const filteredCustomExtras = useMemo(() => {
+    if (!extraSearchQuery.trim()) return customExtras;
+    return customExtras.filter((item) => item.name.toLowerCase().includes(extraSearchQuery.toLowerCase()));
+  }, [customExtras, extraSearchQuery]);
+
   return (
-    <div className="space-y-4 pb-28 md:pb-6">
+    <div className="space-y-4 pb-36 md:pb-6">
       <h1 className="text-heading-lg text-foreground">Census Entry</h1>
 
       <Card>
         <CardContent className="pt-4 space-y-3">
           <div className="flex justify-between items-center">
-            <span className="text-label font-semibold">{submittedCount} / {wards.length} wards submitted</span>
-            <span className="text-label font-semibold text-primary">{submissionPct}%</span>
+            <span className="text-base font-semibold">{submittedCount} / {wards.length} wards submitted</span>
+            <span className="text-base font-bold text-primary">{submissionPct}%</span>
           </div>
           <Progress value={submissionPct} className="h-3" />
-          <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-8 gap-2 mt-3">
-            {wardStatuses.map((ws) => {
+          
+          <div className="grid grid-cols-3 min-[400px]:grid-cols-4 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-8 gap-2 mt-3">
+            {sortedWardStatuses.map((ws) => {
               const isSubmitted = ws.status === "submitted" || ws.status === "locked";
               const isActive = String(ws.ward.id) === String(wardId);
               return (
@@ -364,13 +412,13 @@ const CensusEntryPage = () => {
                   key={ws.ward.id}
                   onClick={() => loadWardData(ws.ward.id)}
                   className={cn(
-                    "rounded-lg p-2 text-center text-xs border transition-all cursor-pointer",
+                    "rounded-lg p-2 text-center text-sm border transition-all cursor-pointer overflow-hidden",
                     isActive && "ring-2 ring-primary",
                     isSubmitted ? "bg-primary/10 border-primary/30 text-primary" : "bg-muted border-border text-muted-foreground hover:bg-muted/80"
                   )}
                 >
-                  <p className="font-semibold truncate">{ws.ward.code}</p>
-                  {isSubmitted && <p className="text-[10px]">{ws.totalPatients}p</p>}
+                  <p className="font-semibold truncate text-sm sm:text-base">{ws.ward.code}</p>
+                  {isSubmitted && <p className="text-xs">{ws.totalPatients}p</p>}
                 </button>
               );
             })}
@@ -379,34 +427,34 @@ const CensusEntryPage = () => {
       </Card>
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="w-full">
-          <TabsTrigger value="patients" className="flex-1 touch-target">Patient Census</TabsTrigger>
-          <TabsTrigger value="staff" className="flex-1 touch-target">Staff Meals</TabsTrigger>
+        <TabsList className="grid w-full grid-cols-2 h-auto p-1 bg-muted">
+          <TabsTrigger value="patients" className="touch-target text-sm sm:text-base py-2">Patient Census</TabsTrigger>
+          <TabsTrigger value="staff" className="touch-target text-sm sm:text-base py-2">Staff Meals</TabsTrigger>
         </TabsList>
 
         <TabsContent value="patients" className="space-y-4 mt-4">
           <Card>
-            <CardContent className="pt-5 space-y-3">
-              <div className="flex flex-col sm:flex-row sm:items-end gap-3">
-                <div className="flex-1 space-y-1.5">
-                  <Label className="text-label font-semibold">Select Ward</Label>
+            <CardContent className="pt-5 space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-end gap-4">
+                <div className="flex-1 space-y-2">
+                  <Label className="text-base font-semibold">Select Ward</Label>
                   <Popover open={wardSearchOpen} onOpenChange={setWardSearchOpen}>
                     <PopoverTrigger asChild>
-                      <Button variant="outline" role="combobox" aria-expanded={wardSearchOpen} className="w-full justify-between h-12 text-input touch-target">
+                      <Button variant="outline" role="combobox" aria-expanded={wardSearchOpen} className="w-full justify-between h-12 text-base touch-target text-foreground">
                         {ward ? `${ward.name} (${ward.code})` : "Search or select a ward…"}
-                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                        <ChevronsUpDown className="ml-2 h-5 w-5 shrink-0 opacity-50" />
                       </Button>
                     </PopoverTrigger>
 
                     <PopoverContent className="w-full p-0" align="start">
                       <Command>
-                        <CommandInput placeholder="Search by ward name…" />
+                        <CommandInput placeholder="Search by ward name…" className="text-base h-11" />
                         <CommandList>
-                          <CommandEmpty>No ward found.</CommandEmpty>
+                          <CommandEmpty className="text-base py-6 text-center">No ward found.</CommandEmpty>
                           <CommandGroup>
-                            {wards.map((w) => (
-                              <CommandItem key={w.id} value={`${w.name} ${w.code}`} onSelect={() => loadWardData(w.id)} className="text-body">
-                                <Check className={cn("mr-2 h-4 w-4", String(wardId) === String(w.id) ? "opacity-100" : "opacity-0")} />
+                            {sortedWardsForDropdown.map((w) => (
+                              <CommandItem key={w.id} value={`${w.name} ${w.code}`} onSelect={() => loadWardData(w.id)} className="text-base py-2">
+                                <Check className={cn("mr-2 h-5 w-5", String(wardId) === String(w.id) ? "opacity-100" : "opacity-0")} />
                                 <span className="font-medium">{w.name}</span>
                                 <span className="ml-2 text-muted-foreground text-sm">({w.code})</span>
                               </CommandItem>
@@ -418,25 +466,27 @@ const CensusEntryPage = () => {
                   </Popover>
                 </div>
 
-                <div className="flex items-center gap-2">
-                  <Badge variant="outline" className="h-8 gap-1.5 text-xs">
-                    <CalendarDays className="h-3.5 w-3.5" />
+                <div className="flex flex-wrap items-center gap-2 mt-2 sm:mt-0 sm:gap-3">
+                  <Badge variant="outline" className="h-10 gap-2 text-xs sm:text-sm px-3 sm:px-4 py-1">
+                    <CalendarDays className="h-4 w-4" />
                     {new Date().toLocaleDateString("en-LK", { year: "numeric", month: "short", day: "numeric" })}
                   </Badge>
 
                   {ward && (
-                    <Badge className={statusConfig[status].className + " h-8 text-xs"}>{statusConfig[status].label}</Badge>
+                    <Badge className={statusConfig[status].className + " h-10 text-xs sm:text-sm px-3 sm:px-4 py-1"}>
+                      {statusConfig[status].label}
+                    </Badge>
                   )}
                 </div>
               </div>
 
-              {ward && <p className="text-label text-muted-foreground">Capacity: {capacity}</p>}
+              {ward && <p className="text-base font-medium text-muted-foreground">Capacity: {capacity}</p>}
             </CardContent>
           </Card>
 
           {!ward && (
             <Card>
-              <CardContent className="py-16 text-center text-muted-foreground">
+              <CardContent className="py-20 text-center text-muted-foreground text-lg">
                 {loading ? "Loading wards..." : "Select a ward above to begin entering census data."}
               </CardContent>
             </Card>
@@ -446,29 +496,30 @@ const CensusEntryPage = () => {
             <>
               <Card>
                 <CardHeader className="pb-2"><CardTitle className="text-heading-sm">Patient Counts</CardTitle></CardHeader>
-                <CardContent className="space-y-4">
+                <CardContent className="space-y-6">
                   {overCapacity && (
-                    <div className="flex items-center gap-2 rounded-lg bg-error-bg border border-destructive/30 px-4 py-3 text-destructive text-sm font-medium">
-                      <AlertTriangle className="h-4 w-4 shrink-0" /> Patient count exceeds ward capacity of {capacity}!
+                    <div className="flex items-center gap-2 rounded-lg bg-error-bg border border-destructive/30 px-4 py-3 text-destructive text-base font-medium">
+                      <AlertTriangle className="h-5 w-5 shrink-0" /> Patient count exceeds ward capacity of {capacity}!
                     </div>
                   )}
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-4">
                     {dietTypes.map((diet) => {
                       const idx = refIdx++;
                       const dietKey = getDietKey(diet);
                       return (
                         <div key={dietKey} className="flex items-center justify-between gap-3">
-                          <div className="flex items-center gap-1.5">
-                            <Label className="text-label font-semibold">{diet.nameEn}</Label>
+                          <div className="flex items-center gap-2">
+                            <Label className="text-base font-semibold">{diet.nameEn}</Label>
                             {diet.tooltip && (
                               <Tooltip>
-                                <TooltipTrigger asChild><HelpCircle className="h-3.5 w-3.5 text-muted-foreground cursor-help" /></TooltipTrigger>
-                                <TooltipContent side="top">{diet.tooltip}</TooltipContent>
+                                <TooltipTrigger asChild><HelpCircle className="h-4 w-4 text-muted-foreground cursor-help" /></TooltipTrigger>
+                                <TooltipContent side="top" className="text-sm">{diet.tooltip}</TooltipContent>
                               </Tooltip>
                             )}
                           </div>
                           <NumField
+                            className="text-primary border-neutral-700 focus:border-primary"
                             disabled={isReadOnly}
                             value={diets[dietKey] ?? ""}
                             onChange={(v) => !isReadOnly && setDiets((prev) => ({ ...prev, [dietKey]: v }))}
@@ -480,12 +531,12 @@ const CensusEntryPage = () => {
                     })}
                   </div>
 
-                  <div className="pt-3 border-t space-y-2">
+                  <div className="pt-4 border-t space-y-2">
                     <div className="flex items-baseline justify-between">
-                      <span className="text-body font-bold text-foreground">Total Patients</span>
-                      <span className={`text-heading-sm font-bold ${overCapacity ? "text-destructive" : "text-primary"}`}>{totalPatients} / {capacity}</span>
+                      <span className="text-lg font-bold text-foreground">Total Patients</span>
+                      <span className={`text-heading-md font-bold ${overCapacity ? "text-destructive" : "text-primary"}`}>{totalPatients} / {capacity}</span>
                     </div>
-                    <div className="relative h-3 bg-muted rounded-full overflow-hidden">
+                    <div className="relative h-4 bg-muted rounded-full overflow-hidden">
                       <div className={`absolute inset-y-0 left-0 rounded-full transition-all duration-300 ${progressColor}`} style={{ width: `${Math.min(capacityPercent, 100)}%` }} />
                     </div>
                   </div>
@@ -495,13 +546,15 @@ const CensusEntryPage = () => {
               <Card>
                 <CardHeader className="pb-2"><CardTitle className="text-heading-sm">Special Requests</CardTitle></CardHeader>
                 <CardContent>
-                  <div className="grid grid-cols-3 gap-4">
-                    {[{ key: "soup", label: "Soup" }, { key: "kanda", label: "Kanda" }, { key: "polSambola", label: "Pol Sambola" }].map((item) => {
+                
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-x-8 gap-y-4">
+                    {recipesMaster.map((item) => {
                       const idx = refIdx++;
                       return (
-                        <div key={item.key} className="space-y-1.5">
-                          <Label className="text-label font-semibold">{item.label}</Label>
+                        <div key={item.key} className="flex items-center gap-1 sm:gap-2 md:gap-3">
+                          <Label className="text-base font-semibold whitespace-nowrap flex-shrink-0">{item.name}</Label>
                           <NumField
+                            className="text-primary border-neutral-700 focus:border-primary bg-white max-w-[9px] sm:max-w-[110px] md:max-w-[120px]"
                             disabled={isReadOnly}
                             value={special[item.key] ?? ""}
                             onChange={(v) => !isReadOnly && setSpecial((s) => ({ ...s, [item.key]: v }))}
@@ -518,52 +571,71 @@ const CensusEntryPage = () => {
               <Collapsible open={extrasOpen} onOpenChange={setExtrasOpen}>
                 <Card>
                   <CollapsibleTrigger asChild>
-                    <CardHeader className="cursor-pointer hover:bg-muted/50 transition-colors rounded-t-lg pb-3">
+                    <CardHeader className="cursor-pointer hover:bg-muted/50 transition-colors rounded-t-lg pb-4">
                       <div className="flex items-center justify-between">
                         <CardTitle className="text-heading-sm">Extra Items</CardTitle>
-                        {extrasOpen ? <ChevronDown className="h-5 w-5 text-muted-foreground" /> : <ChevronRight className="h-5 w-5 text-muted-foreground" />}
+                        {extrasOpen ? <ChevronDown className="h-6 w-6 text-muted-foreground" /> : <ChevronRight className="h-6 w-6 text-muted-foreground" />}
                       </div>
                     </CardHeader>
                   </CollapsibleTrigger>
                   <CollapsibleContent>
-                    <CardContent className="pt-0">
+                    <CardContent className="pt-0 space-y-4">
+                      
+                      {/* 👇 Inserted Search Bar for Extra Items */}
+                      <div className="relative">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                        <Input
+                          placeholder="Search extra items..."
+                          value={extraSearchQuery}
+                          onChange={(e) => setExtraSearchQuery(e.target.value)}
+                          className="pl-10 h-11 text-base border-slate-300 focus:border-primary bg-background"
+                        />
+                      </div>
+
                       <div className="border rounded-lg overflow-hidden">
-                        <div className="grid grid-cols-[1fr_100px_60px] gap-2 bg-muted px-4 py-2 text-label font-semibold text-muted-foreground">
+                        <div className="grid grid-cols-[1fr_80px_50px] sm:grid-cols-[1fr_120px_80px] gap-2 sm:gap-4 bg-muted px-3 sm:px-5 py-3 text-xs sm:text-base font-semibold text-muted-foreground">
                           <span>Item</span><span className="text-center">Qty</span><span className="text-center">Unit</span>
                         </div>
-                        {extraItemsMaster.map((item) => {
+                        
+                        {filteredExtraItems.length === 0 && filteredCustomExtras.length === 0 && (
+                          <div className="p-6 text-center text-muted-foreground">No matching items found.</div>
+                        )}
+
+                        {filteredExtraItems.map((item) => {
                           const idx = refIdx++;
                           return (
-                            <div key={item.id} className="grid grid-cols-[1fr_100px_60px] gap-2 px-4 py-2 border-t items-center">
-                              <span className="text-body">{item.name}</span>
+                            <div key={item.id} className="grid grid-cols-[1fr_80px_50px] sm:grid-cols-[1fr_120px_80px] gap-2 sm:gap-4 px-3 sm:px-5 py-2 sm:py-3 border-t items-center">
+                              <span className="text-sm sm:text-lg font-medium">{item.name}</span>
+                              
                               <NumField
                                 disabled={isReadOnly}
                                 value={extras[item.name] ?? ""}
                                 onChange={(v) => !isReadOnly && setExtras((e) => ({ ...e, [item.name]: v }))}
                                 onEnter={() => focusNext(idx)}
                                 inputRef={registerRef(idx)}
-                                className="w-full"
+                                className="w-full text-primary border-neutral-700 focus:border-primary"
                               />
-                              <span className="text-label text-muted-foreground text-center">{item.unit}</span>
+                              <span className="text-sm sm:text-base font-medium text-muted-foreground text-center">{item.unit}</span>
                             </div>
                           );
                         })}
-                        {customExtras.map((item, i) => (
-                          <div key={`custom-${i}`} className="grid grid-cols-[1fr_100px_60px] gap-2 px-4 py-2 border-t items-center bg-accent/30">
-                            <span className="text-body">{item.name}</span>
+                        {filteredCustomExtras.map((item, i) => (
+                          <div key={`custom-${i}`} className="grid grid-cols-[1fr_80px_50px] sm:grid-cols-[1fr_120px_80px] gap-2 sm:gap-4 px-3 sm:px-5 py-2 sm:py-3 border-t items-center bg-accent/30">
+                            <span className="text-sm sm:text-lg font-medium">{item.name}</span>
                             <NumField
                               disabled={isReadOnly}
                               value={item.quantity ?? ""}
-                              onChange={(v) => !isReadOnly && setCustomExtras((prev) => prev.map((ce, j) => j === i ? { ...ce, quantity: v } : ce))}
-                              className="w-full"
+                              
+                              onChange={(v) => !isReadOnly && setCustomExtras((prev) => prev.map((ce) => ce.name === item.name ? { ...ce, quantity: v } : ce))}
+                              className="w-full text-primary border-neutral-700 focus:border-primary"
                             />
-                            <span className="text-label text-muted-foreground text-center">{item.unit}</span>
+                            <span className="text-sm sm:text-base font-medium text-muted-foreground text-center">{item.unit}</span>
                           </div>
                         ))}
                       </div>
                       {!isReadOnly && (
-                        <Button variant="outline" size="sm" className="mt-3 touch-target" onClick={() => setAddItemOpen(true)}>
-                          <Plus className="h-4 w-4 mr-1" /> Add Custom Item
+                        <Button variant="outline" className="mt-4 h-11 text-base touch-target" onClick={() => setAddItemOpen(true)}>
+                          <Plus className="h-5 w-5 mr-2" /> Add Custom Item
                         </Button>
                       )}
                     </CardContent>
@@ -572,23 +644,23 @@ const CensusEntryPage = () => {
               </Collapsible>
 
               {!isReadOnly && (
-                <div className="fixed bottom-0 left-0 right-0 md:static bg-card border-t md:border-0 p-4 md:p-0 flex gap-3 z-30">
-                  <Button variant="outline" className="h-12 touch-target" disabled={!wardId || savingDraft} onClick={saveDraft}>
-                    <Save className="h-4 w-4 mr-2" /> {savingDraft ? "Saving..." : "Save Draft"}
+                <div className="fixed bottom-0 left-0 right-0 md:static bg-card border-t md:border-0 p-3 sm:p-4 md:p-0 flex flex-col sm:flex-row gap-2 sm:gap-4 z-30 shadow-[0_-4px_15px_rgba(0,0,0,0.1)] md:shadow-none">
+                  <Button variant="outline" className="h-12 text-base font-semibold touch-target w-full sm:w-auto" disabled={!wardId || savingDraft} onClick={saveDraft}>
+                    <Save className="h-5 w-5 mr-2" /> {savingDraft ? "Saving..." : "Save Draft"}
                   </Button>
                   <Button
-                    className={cn("flex-1 md:flex-none h-12 touch-target text-body font-semibold", status === "submitted" ? "bg-accent text-accent-foreground hover:bg-accent/90" : "")}
-                    disabled={overCapacity || totalPatients === 0 || submitting}
+                    className={cn("flex-1 h-12 text-base font-semibold touch-target w-full sm:w-auto", status === "submitted" ? "bg-accent text-accent-foreground hover:bg-accent/90" : "")}
+                    disabled={overCapacity || submitting}
                     onClick={() => setConfirmOpen(true)}
                   >
-                    <Send className="h-4 w-4 mr-2" />
+                    <Send className="h-5 w-5 mr-2" />
                     {submitting ? "Saving..." : status === "submitted" ? "Update Ward Data" : "Submit Ward Data"}
                   </Button>
                 </div>
               )}
 
               {isReadOnly && (
-                <div className="rounded-lg bg-destructive/10 border border-destructive/20 px-4 py-3 text-sm font-medium text-destructive">
+                <div className="rounded-lg bg-destructive/10 border border-destructive/20 px-5 py-4 text-base font-medium text-destructive">
                   This ward's census has been locked by the calculation engine and can no longer be edited.
                 </div>
               )}
@@ -600,36 +672,39 @@ const CensusEntryPage = () => {
           <Card>
             <CardHeader>
               <CardTitle className="text-heading-sm">Staff Meal Counts for Today</CardTitle>
-              <p className="text-label text-muted-foreground mt-1">Enter total staff meal counts (not per-ward).</p>
+              <p className="text-base text-muted-foreground mt-1">Enter total staff meal counts (not per-ward).</p>
             </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+            <CardContent className="space-y-8">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-8">
                 {["breakfast", "lunch", "dinner"].map((meal) => (
-                  <div key={meal} className="space-y-2 text-center">
-                    <Label className="text-label font-semibold capitalize text-lg">{meal}</Label>
+                  <div key={meal} className="space-y-3 text-center flex flex-col items-center">
+                    <Label className="text-lg font-bold capitalize">{meal}</Label>
                     <NumField
                       disabled={staffReadOnly}
                       value={staffMeals[meal] ?? ""}
                       onChange={(v) => !staffReadOnly && setStaffMeals((s) => ({ ...s, [meal]: v }))}
-                      className="h-14 text-2xl text-center touch-target font-bold w-full"
+                      className="h-16 text-3xl mx-auto touch-target font-bold w-32 border-slate-300 focus:border-primary"
                     />
                   </div>
                 ))}
               </div>
+              
               <div className="flex items-center gap-3">
-                <Badge className="bg-badge-hospital text-primary-foreground px-3 py-1">Staff Cycle: Chicken</Badge>
+                <Badge className="bg-badge-hospital text-primary-foreground px-4 py-2 text-base font-medium">Staff Cycle: Chicken</Badge>
               </div>
               
               {!staffReadOnly ? (
-                <Button
-                  className={cn("h-12 px-8 touch-target text-body font-semibold", staffStatus === "submitted" ? "bg-accent text-accent-foreground hover:bg-accent/90" : "")}
-                  onClick={handleSubmitStaff}
-                  disabled={ (parseInt(staffMeals.breakfast, 10) || 0) + (parseInt(staffMeals.lunch, 10) || 0) + (parseInt(staffMeals.dinner, 10) || 0) === 0}
-                >
-                  <Send className="h-4 w-4 mr-2" /> {staffStatus === "submitted" ? "Update Staff Meals" : "Submit Staff Meals"}
-                </Button>
+                <div className="pt-4 border-t">
+                  <Button
+                    className={cn("h-12 px-8 touch-target text-base font-semibold w-full sm:w-auto", staffStatus === "submitted" ? "bg-accent text-accent-foreground hover:bg-accent/90" : "")}
+                    onClick={handleSubmitStaff}
+                    disabled={ (parseInt(staffMeals.breakfast, 10) || 0) + (parseInt(staffMeals.lunch, 10) || 0) + (parseInt(staffMeals.dinner, 10) || 0) === 0}
+                  >
+                    <Send className="h-5 w-5 mr-2" /> {staffStatus === "submitted" ? "Update Staff Meals" : "Submit Staff Meals"}
+                  </Button>
+                </div>
               ) : (
-                <div className="rounded-lg bg-destructive/10 border border-destructive/20 px-4 py-3 text-sm font-medium text-destructive">
+                <div className="rounded-lg bg-destructive/10 border border-destructive/20 px-5 py-4 text-base font-medium text-destructive">
                   Staff meals have been locked by the calculation engine and cannot be edited.
                 </div>
               )}
@@ -641,53 +716,64 @@ const CensusEntryPage = () => {
       <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{status === "submitted" ? "Update Census Data" : "Submit Census Data"}</DialogTitle>
-            <DialogDescription>
-              {status === "submitted" 
-                ? `You are about to override the submitted data for ${ward?.name}. Continue?`
-                : `Are you sure you want to submit ${ward?.name}'s data?`}
+            <DialogTitle className="text-xl">{status === "submitted" ? "Update Census Data" : "Submit Census Data"}</DialogTitle>
+            <DialogDescription className="text-base mt-2 flex flex-col gap-3">
+              <span>
+                {status === "submitted" 
+                  ? `You are about to override the submitted data for ${ward?.name}. Continue?`
+                  : `Are you sure you want to submit ${ward?.name}'s data?`}
+              </span>
+
+              {totalPatients === 0 && (
+                <span className="p-3 bg-warning/10 text-warning rounded-lg border border-warning/20 font-semibold flex items-center gap-2">
+                  <AlertTriangle className="h-5 w-5" />
+                  WARNING: You are submitting ZERO patient meals for this ward.
+                </span>
+              )}
             </DialogDescription>
           </DialogHeader>
-          <DialogFooter className="gap-2">
-            <Button variant="outline" onClick={() => setConfirmOpen(false)} className="touch-target">Cancel</Button>
-            <Button onClick={handleSubmit} className="touch-target">Yes, {status === "submitted" ? "Update" : "Submit"}</Button>
+          <DialogFooter className="gap-3 mt-4">
+            <Button variant="outline" onClick={() => setConfirmOpen(false)} className="h-11 text-base touch-target">Cancel</Button>
+            <Button onClick={handleSubmit} className="h-11 text-base font-semibold touch-target">Yes, {status === "submitted" ? "Update" : "Submit"}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
       <Dialog open={addItemOpen} onOpenChange={setAddItemOpen}>
         <DialogContent>
-          <DialogHeader><DialogTitle>Add Custom Extra Item</DialogTitle></DialogHeader>
-          <div className="space-y-4">
-            <div className="space-y-1.5">
-              <Label className="text-label font-semibold">Item Name</Label>
-              <Input value={newItem.name} onChange={(e) => setNewItem((n) => ({ ...n, name: e.target.value }))} className="h-11 text-input" placeholder="Enter item name" />
+          <DialogHeader><DialogTitle className="text-xl">Add Custom Extra Item</DialogTitle></DialogHeader>
+          <div className="space-y-5 mt-2">
+            <div className="space-y-2">
+              <Label className="text-base font-semibold">Item Name</Label>
+              <Input value={newItem.name} onChange={(e) => setNewItem((n) => ({ ...n, name: e.target.value }))} 
+                className="h-12 text-lg text-primary border-slate-300 focus:border-primary focus-visible:ring-0 focus-visible:ring-offset-0" 
+                placeholder="Enter item name" />
             </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label className="text-label font-semibold">Quantity</Label>
-                <NumField value={newItem.quantity ?? ""} onChange={(v) => setNewItem((n) => ({ ...n, quantity: v }))} className="w-full" />
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label className="text-base font-semibold">Quantity</Label>
+                <NumField value={newItem.quantity ?? ""} onChange={(v) => setNewItem((n) => ({ ...n, quantity: v }))} className="w-full text-primary border-slate-300 focus:border-primary" />
               </div>
-              <div className="space-y-1.5">
-                <Label className="text-label font-semibold">Unit</Label>
+              <div className="space-y-2">
+                <Label className="text-base font-semibold">Unit</Label>
                 <Popover>
                   <PopoverTrigger asChild>
-                    <Button variant="outline" className="h-11 w-full justify-between text-input">
-                      {newItem.unit} <ChevronsUpDown className="ml-2 h-4 w-4 opacity-50" />
+                    <Button variant="outline" className="h-12 w-full justify-between text-lg text-foreground border-slate-300">
+                      {newItem.unit} <ChevronsUpDown className="ml-2 h-5 w-5 opacity-50" />
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-32 p-1">
                     {["Pcs", "g", "kg", "ml", "L", "Fruit"].map((u) => (
-                      <Button key={u} variant="ghost" size="sm" className="w-full justify-start" onClick={() => setNewItem((n) => ({ ...n, unit: u }))}>{u}</Button>
+                      <Button key={u} variant="ghost" size="sm" className="w-full justify-start text-base" onClick={() => setNewItem((n) => ({ ...n, unit: u }))}>{u}</Button>
                     ))}
                   </PopoverContent>
                 </Popover>
               </div>
             </div>
           </div>
-          <DialogFooter className="gap-2 mt-2">
-            <Button variant="outline" onClick={() => setAddItemOpen(false)} className="touch-target">Cancel</Button>
-            <Button onClick={handleAddCustomItem} disabled={!newItem.name.trim()} className="touch-target">Add Item</Button>
+          <DialogFooter className="gap-3 mt-6">
+            <Button variant="outline" onClick={() => setAddItemOpen(false)} className="h-11 text-base touch-target">Cancel</Button>
+            <Button onClick={handleAddCustomItem} disabled={!newItem.name.trim()} className="h-11 text-base font-semibold touch-target">Add Item</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

@@ -43,56 +43,58 @@ export const ROLE_BADGE_COLORS = {
   KITCHEN: "bg-badge-kitchen",
 };
 
-export const MOCK_USERS = [
-  { id: "1", name: "Kamal Perera", role: "SYSTEM_ADMIN", username: "admin" },
-  { id: "2", name: "Nimal Silva", role: "HOSPITAL_ADMIN", username: "hadmin" },
-  { id: "3", name: "Sita Fernando", role: "DIET_CLERK", username: "diet" },
-  { id: "4", name: "Ruwan Jayawardena", role: "SUBJECT_CLERK", username: "subject" },
-  { id: "5", name: "Kumari Bandara", role: "ACCOUNTANT", username: "accountant" },
-  { id: "6", name: "Sunil Rathnayake", role: "KITCHEN", username: "kitchen" },
-];
-
 export const NAV_ITEMS = {
   DIET_CLERK: [
     { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
     { title: "Census Entry", url: "/census", icon: ClipboardList },
-    { title: "My Submissions", url: "/census/submissions", icon: FileText },
+    { title: "Census Submissions", url: "/census/submissions", icon: FileText },
+    { title: "Past Census History", url: "/census/history", icon: History },
+    { title: "Consolidated Diet Sheet", url: "/reports/consolidated-diet-sheet", icon: FileText },
   ],
+
   SUBJECT_CLERK: [
     { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
     { title: "Calculations", url: "/calculations", icon: Calculator },
-    { title: "Purchase Orders", url: "/orders", icon: ShoppingCart },
+    { title: "Calculation Results", url: "/calculations/results", icon: FileText },
+    { title: "Past Calculations History", url: "/calculations/history", icon: History },
+    { title: "Orders", url: "/orders", icon: ShoppingCart },
+    
   ],
+
   ACCOUNTANT: [
     { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
-    { title: "Pending Approvals", url: "/approvals", icon: CheckSquare },
-    { title: "Invoices", url: "/invoices", icon: Receipt },
-    { title: "Price Management", url: "/accountant/prices", icon: DollarSign },
     { title: "Financial Reports", url: "/reports", icon: BarChart3 },
+    { title: "Price Management", url: "/accountant/prices", icon: DollarSign },
+    { title: "Approvals", url: "/approvals", icon: CheckSquare },
+    { title: "Purchase Orders", url: "/purchase-orders", icon: Receipt },
+    { title: "Issue Reports", url: "/accountant/reports", icon: AlertTriangle },
+    { title: "Daily Archive", url: "/accountant/history", icon: History },
   ],
+
+  SYSTEM_ADMIN: [
+    { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
+    { title: "System Users", url: "/system/users", icon: Users },
+    { title: "Audit Logs", url: "/system/audit", icon: History },
+    //{ title: "Settings", url: "/system/settings", icon: Settings },
+    
+  ],
+
+  HOSPITAL_ADMIN: [
+    { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
+    { title: "Admin Daily Cycle", url: "/admin/daily-cycle", icon: CalendarDays },
+    { title: "Admin Diet Cycle", url: "/admin/diet-cycle", icon: ListTree },
+    { title: "Admin Diet Type", url: "/admin/diet-types", icon: Utensils },
+    { title: "Admin Items", url: "/admin/items", icon: Package },
+    { title: "Admin Norm Weights", url: "/admin/norm-weights", icon: Scale },
+    { title: "Admin Recipes", url: "/admin/recipes", icon: BookOpen },
+    { title: "Admin Wards", url: "/admin/wards", icon: Building2 },
+    { title: "Issue Reports", url: "/admin/reports", icon: AlertTriangle },
+  ],
+
   KITCHEN: [
     { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
     { title: "Cook Sheet", url: "/kitchen", icon: ChefHat },
     { title: "Delivery Receiving", url: "/kitchen/receiving", icon: Truck },
-    { title: "Issue Reports", url: "/kitchen/reports", icon: AlertTriangle },
-  ],
-  HOSPITAL_ADMIN: [
-    { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
-    { title: "Daily Meal Cycle", url: "/admin/daily-cycle", icon: CalendarDays },
-    { title: "Wards", url: "/admin/wards", icon: Building2 },
-    { title: "Diet Types", url: "/admin/diet-types", icon: Utensils },
-    { title: "Norm Weights", url: "/admin/norm-weights", icon: Scale },
-    { title: "Items", url: "/admin/items", icon: Package },
-    { title: "Diet Cycles", url: "/admin/diet-cycles", icon: ListTree },
-    { title: "Recipes", url: "/admin/recipes", icon: BookOpen },
-    { title: "Notifications", url: "/admin/notifications", icon: Bell },
-  ],
-  SYSTEM_ADMIN: [
-    { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
-    { title: "Users", url: "/system/users", icon: Users },
-    { title: "Audit Logs", url: "/system/audit", icon: History },
-    { title: "Backups", url: "/system/backups", icon: Database },
-    { title: "Settings", url: "/system/settings", icon: Settings },
   ],
 };
 
@@ -112,6 +114,13 @@ export const DASHBOARD_CARDS = {
       url: "/census/submissions",
       color: "text-badge-hospital",
     },
+    {
+      title: "Consolidated Diet Sheet",
+      description: "View the consolidated diet sheet for all wards",
+      icon: FileText,
+      url: "/reports/consolidated-diet-sheet",
+      color: "text-badge-diet",
+    }
   ],
   SUBJECT_CLERK: [
     {
@@ -145,8 +154,8 @@ export const DASHBOARD_CARDS = {
       color: "text-warning",
     },
     {
-      title: "Invoices",
-      description: "View and download invoices",
+      title: "Purchase Orders",
+      description: "View and manage purchase orders",
       icon: Receipt,
       url: "/invoices",
       color: "text-badge-hospital",
@@ -165,6 +174,13 @@ export const DASHBOARD_CARDS = {
       url: "/reports",
       color: "text-primary",
     },
+    {
+      title: "Issue Reports",
+      description: "View delivery issue history",
+      icon: AlertTriangle,
+      url: "/accountant/reports",
+      color: "text-destructive",
+    },
   ],
   KITCHEN: [
     {
@@ -180,13 +196,6 @@ export const DASHBOARD_CARDS = {
       icon: Truck,
       url: "/kitchen/receiving",
       color: "text-primary",
-    },
-    {
-      title: "Issue Reports",
-      description: "View delivery issue history",
-      icon: AlertTriangle,
-      url: "/kitchen/reports",
-      color: "text-warning",
     },
   ],
   HOSPITAL_ADMIN: [
@@ -219,10 +228,10 @@ export const DASHBOARD_CARDS = {
       color: "text-warning",
     },
     {
-      title: "Notifications",
-      description: "View quality and delivery alerts",
-      icon: Bell,
-      url: "/admin/notifications",
+      title: "Issue Reports",
+      description: "View delivery issue history",
+      icon: AlertTriangle,
+      url: "/admin/reports",
       color: "text-destructive",
     },
   ],
@@ -248,12 +257,12 @@ export const DASHBOARD_CARDS = {
       url: "/system/backups",
       color: "text-badge-hospital",
     },
-    {
-      title: "Settings",
-      description: "Configure system settings",
-      icon: Settings,
-      url: "/system/settings",
-      color: "text-primary",
-    },
+    // {
+    //   title: "Settings",
+    //   description: "Configure system settings",
+    //   icon: Settings,
+    //   url: "/system/settings",
+    //   color: "text-primary",
+    // },
   ],
 };
