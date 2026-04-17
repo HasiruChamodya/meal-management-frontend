@@ -10,6 +10,7 @@ const mapUserRow = (row) => ({
   lastLogin: "Never",
   twoFA: false,
   password_hash: row.password_hash,
+  must_change_password: row.must_change_password, 
   created_at: row.created_at,
   updated_at: row.updated_at,
 });
@@ -57,6 +58,7 @@ const findByEmail = async (email) => {
       password_hash,
       role,
       is_active,
+      must_change_password,
       created_at,
       updated_at
     FROM users
@@ -139,6 +141,7 @@ const resetUserPassword = async (id, passwordHash) => {
     UPDATE users
     SET
       password_hash = $1,
+      must_change_password = true,
       updated_at = CURRENT_TIMESTAMP
     WHERE id = $2
     RETURNING id, full_name, email

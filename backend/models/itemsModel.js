@@ -15,7 +15,6 @@ const mapItemRow = (row) => ({
   calcType: row.calc_type,
   active: row.active,
   createdAt: row.created_at,
-  updatedAt: row.updated_at,
 });
 
 exports.getItems = async () => {
@@ -23,22 +22,27 @@ exports.getItems = async () => {
     SELECT *
     FROM items
     WHERE active = TRUE
-    ORDER BY category_id ASC, name_en ASC
+    ORDER BY id DESC
   `);
-  return result.rows.map(mapItemRow);
-};
 
-exports.getItemById = async (id) => {
-  const result = await pool.query(`SELECT * FROM items WHERE id = $1`, [id]);
-  return result.rows[0] ? mapItemRow(result.rows[0]) : null;
+  return result.rows.map(mapItemRow);
 };
 
 exports.createItem = async (item) => {
   const query = `
     INSERT INTO items
     (
-      name_en, name_si, unit, default_price, category_id,
-      is_protein, diet_cycle, is_vegetable, veg_category, is_extra, calc_type
+      name_en,
+      name_si,
+      unit,
+      default_price,
+      category_id,
+      is_protein,
+      diet_cycle,
+      is_vegetable,
+      veg_category,
+      is_extra,
+      calc_type
     )
     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
     RETURNING *
@@ -76,8 +80,7 @@ exports.updateItem = async (id, item) => {
       is_vegetable = $8,
       veg_category = $9,
       is_extra = $10,
-      calc_type = $11,
-      updated_at = CURRENT_TIMESTAMP
+      calc_type = $11
     WHERE id = $12
     RETURNING *
   `;
@@ -103,8 +106,9 @@ exports.updateItem = async (id, item) => {
 
 exports.deleteItem = async (id) => {
   const result = await pool.query(
-    `UPDATE items SET active = FALSE, updated_at = CURRENT_TIMESTAMP WHERE id = $1 RETURNING *`,
+    `UPDATE items SET active = FALSE WHERE id = $1 RETURNING *`,
     [id]
   );
+
   return result.rows[0] ? mapItemRow(result.rows[0]) : null;
 };

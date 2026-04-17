@@ -27,7 +27,7 @@ const getAllWards = async () => {
       created_at,
       updated_at
     FROM wards
-    ORDER BY ward_name ASC
+    ORDER BY is_active DESC, ward_name ASC
   `;
   const result = await pool.query(query);
   return result.rows.map(mapWardRow);
@@ -111,7 +111,8 @@ const updateWard = async (id, { code, name, beds, cots, icu, incubators }) => {
   return result.rows[0] ? mapWardRow(result.rows[0]) : null;
 };
 
-const updateWardStatus = async (id, active) => {
+// Renamed from updateWardStatus to toggleWardStatus to match your controller!
+const toggleWardStatus = async (id, active) => {
   const query = `
     UPDATE wards
     SET
@@ -139,5 +140,6 @@ module.exports = {
   getWardById,
   createWard,
   updateWard,
-  updateWardStatus,
+  toggleWardStatus,
+  updateWardStatus: toggleWardStatus,
 };

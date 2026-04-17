@@ -22,6 +22,13 @@ exports.register = async (req, res) => {
       });
     }
 
+    const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&#^_-]).{8,}$/;
+    if (!passwordRegex.test(password)) {
+      return res.status(400).json({ 
+        message: "Password must be at least 8 characters long and contain one uppercase, one lowercase, one number, and one special character." 
+      });
+    }
+
     if (!ALLOWED_ROLES.has(role)) {
       return res.status(400).json({ message: "Invalid role" });
     }
@@ -162,6 +169,25 @@ exports.login = async (req, res) => {
       return res.status(401).json({ message: "Invalid credentials" });
     }
 
+    if (user.must_change_password) {
+      await writeAudit({
+        req,
+        action: "LOGIN_INTERCEPTED_FOR_PASSWORD_CHANGE",
+        entity: "users",
+        entity_id: String(user.id),
+        details: { email: user.email },
+        severity: "info",
+        status_code: 200,
+        success: true,
+      });
+
+      return res.json({
+        requirePasswordChange: true,
+        userId: user.id,
+        message: "Your password was reset by an admin. Please set a new secure password.",
+      });
+    }
+
     const token = jwt.sign(
       {
         id: user.id,
@@ -223,5 +249,81 @@ exports.login = async (req, res) => {
       detail: error.detail,
       code: error.code,
     });
+  }
+};
+
+exports.setNewPassword = async (req, res) => {
+  try {
+    const { userId, newPassword } = req.body;
+    const pool = require("../config/db"); 
+    const { writeAudit } = require("../utils/audit");
+
+    // Fetch user details for the audit log
+    const userResult = await pool.query("SELECT email, full_name FROM users WHERE id = $1", [userId]);
+    const user = userResult.rows[0];
+
+    // REGEX to enforce password complexity: minimum 8 characters, at least one uppercase letter, one lowercase letter, one number, and one special character
+    const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&#^_-]).{8,}$/;
+    if (!newPassword || !passwordRegex.test(newPassword)) {
+      await writeAudit({
+        req,
+        action: "USER_SET_PASSWORD_FAILED",
+        entity: "users",
+        entity_id: String(userId),
+        user_name: user ? user.full_name : "System",
+        details: { reason: "Password did not meet complexity requirements" },
+        severity: "security",
+        status_code: 400,
+        success: false,
+      });
+
+      return res.status(400).json({ 
+        message: "Password must be at least 8 characters long and contain one uppercase, one lowercase, one number, and one special character." 
+      });
+    }
+
+    // Hash the new password
+    const bcrypt = require("bcrypt");
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+    // Update the database with the new password hash and remove the force-change flag
+    await pool.query(
+      "UPDATE users SET password_hash = $1, must_change_password = false WHERE id = $2",
+      [hashedPassword, userId]
+    );
+
+    // Log the successful password change
+    await writeAudit({
+      req,
+      action: "USER_SET_NEW_PASSWORD",
+      entity: "users",
+      entity_id: String(userId),
+      user_name: user ? user.full_name : "System",
+      details: {
+        message: "User successfully set their own secure password",
+        email: user?.email
+      },
+      severity: "security", 
+      status_code: 200,
+      success: true,
+    });
+
+    return res.json({ message: "Password updated successfully! You can now log in." });
+  } catch (error) {
+    console.error("SET NEW PASSWORD ERROR:", error);
+    const { writeAudit } = require("../utils/audit");
+    
+    await writeAudit({
+      req,
+      action: "USER_SET_PASSWORD_ERROR",
+      entity: "users",
+      entity_id: String(req.body.userId),
+      details: { error: error.message },
+      severity: "security",
+      status_code: 500,
+      success: false,
+    });
+
+    return res.status(500).json({ message: "Server error updating password" });
   }
 };

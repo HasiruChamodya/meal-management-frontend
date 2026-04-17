@@ -171,3 +171,36 @@ exports.upsertStaffMeals = async ({
 
   return mapStaffMealRow(result.rows[0]);
 };
+
+/* FETCH ALL SUBMISSIONS FOR A DATE */
+exports.getSubmissionsByDate = async (entryDate) => {
+  const result = await pool.query(
+    `
+    SELECT
+      ce.*,
+      w.ward_name
+    FROM census_entries ce
+    JOIN wards w ON w.id = ce.ward_id
+    WHERE ce.entry_date = $1
+    ORDER BY w.ward_name ASC
+    `,
+    [entryDate]
+  );
+
+  return result.rows.map((row) => ({
+    id: row.id,
+    wardId: row.ward_id,
+    wardName: row.ward_name,
+    date: row.entry_date,
+    status: row.status,
+    totalPatients: row.total_patients,
+    diets: row.diets || {},
+    special: row.special || {},
+    extras: row.extras || {},
+    customExtras: row.custom_extras || [],
+    submittedBy: row.submitted_by,
+    submittedAt: row.submitted_at,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  }));
+};

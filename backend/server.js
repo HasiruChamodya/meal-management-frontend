@@ -1,4 +1,5 @@
-require("dotenv").config();
+process.env.TZ = "Asia/Colombo";
+const dotenv = require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
 const pool = require("./config/db");
@@ -18,23 +19,28 @@ const recipesRoutes = require("./routes/recipesRoutes");
 const dietCycleRoutes = require("./routes/dietCycleRoutes");
 const dietTypeRoutes = require("./routes/dietTypesRoutes");
 const poRoutes = require("./routes/poRoutes");
-
+const invoiceRoutes = require("./routes/invoiceRoutes");
 const itemsRoutes = require("./routes/itemsRoutes");
+const reportRoutes = require("./routes/reportRoutes");
 
 const app = express();
 
 /* ✅ CORS (do NOT use app.options("*") / "/*" on your setup) */
 app.use(
   cors({
-    origin: "http://localhost:8080",
+    origin: ["http://localhost:8080", "https://hospital-mng-sys.vercel.app"],
     credentials: true,
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization", "x-request-id", "x-correlation-id"],
   })
 );
 
+
+
 app.use(express.json());
 app.use(auditRequestMiddleware);
+
+
 
 // routes
 app.use("/api/auth", authRoutes);
@@ -53,6 +59,8 @@ app.use("/api/items", itemsRoutes);
 app.use("/api/diet-types", dietTypeRoutes);
 app.use("/api/recipes", recipesRoutes);
 app.use("/api/orders", poRoutes);
+app.use("/api/invoices",invoiceRoutes);
+app.use("/api/reports",reportRoutes);
 
 //-------------------------------------------------------------------------
 app.use("/api", hospitalAdminRoutes);

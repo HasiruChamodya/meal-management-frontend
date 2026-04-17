@@ -5,6 +5,8 @@ const { requireAuth } = require("../middleware/authMiddleware");
 
 router.get("/statuses", requireAuth, censusController.getWardStatuses);
 router.get("/ward/:wardId", requireAuth, censusController.getWardCensus);
+router.get("/my-submissions", requireAuth, censusController.getMySubmissions);
+
 router.post("/draft", requireAuth, censusController.saveWardCensusDraft);
 router.post("/submit", requireAuth, censusController.submitWardCensus);
 

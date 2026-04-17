@@ -1,6 +1,11 @@
 const censusModel = require("../models/censusModel");
 const { writeAudit } = require("../utils/audit");
 
+// Helper to get today's date in Sri Lanka timezone (YYYY-MM-DD)
+const getTodaySL = () => {
+  return new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Colombo" });
+};
+
 exports.getWardCensus = async (req, res) => {
   try {
     const { wardId } = req.params;
@@ -11,7 +16,6 @@ exports.getWardCensus = async (req, res) => {
     }
 
     const census = await censusModel.getWardCensusByDate(wardId, date);
-
     res.status(200).json({ census });
   } catch (error) {
     console.error("GET WARD CENSUS ERROR:", error);
@@ -22,10 +26,7 @@ exports.getWardCensus = async (req, res) => {
 exports.getWardStatuses = async (req, res) => {
   try {
     const { date } = req.query;
-
-    if (!date) {
-      return res.status(400).json({ message: "date is required" });
-    }
+    if (!date) return res.status(400).json({ message: "date is required" });
 
     const statuses = await censusModel.getAllWardCensusStatusesByDate(date);
     res.status(200).json({ statuses });
@@ -37,51 +38,33 @@ exports.getWardStatuses = async (req, res) => {
 
 exports.saveWardCensusDraft = async (req, res) => {
   try {
-    const {
-      wardId,
-      date,
-      diets = {},
-      special = {},
-      extras = {},
-      customExtras = [],
-    } = req.body;
+    const { wardId, date, diets = {}, special = {}, extras = {}, customExtras = [] } = req.body;
 
-    if (!wardId || !date) {
-      return res.status(400).json({ message: "wardId and date are required" });
+    if (!wardId || !date) return res.status(400).json({ message: "wardId and date are required" });
+
+    // Security: Only allow edits for the current day
+    if (date !== getTodaySL()) {
+      return res.status(403).json({ message: "You can only edit records for the current day." });
     }
 
-    const totalPatients = Object.values(diets).reduce(
-      (sum, value) => sum + (Number(value) || 0),
-      0
-    );
+    // Security: Prevent editing if locked
+    const existing = await censusModel.getWardCensusByDate(wardId, date);
+    if (existing && existing.status === "locked") {
+      return res.status(403).json({ message: "This record is locked and cannot be edited." });
+    }
+
+    const totalPatients = Object.values(diets).reduce((sum, value) => sum + (Number(value) || 0), 0);
 
     const census = await censusModel.upsertWardCensus({
-      wardId,
-      entryDate: date,
-      status: "draft",
-      totalPatients,
-      diets,
-      special,
-      extras,
-      customExtras,
+      wardId, entryDate: date, status: "draft", totalPatients, diets, special, extras, customExtras,
     });
 
     await writeAudit({
-      req,
-      action: "SAVE_CENSUS_DRAFT",
-      entity: "census_entries",
-      entity_id: `${wardId}_${date}`,
-      new_value: census,
-      details: { wardId, date, totalPatients },
-      severity: "info",
-      status_code: 200,
-      success: true,
+      req, action: "SAVE_CENSUS_DRAFT", entity: "census_entries", entity_id: `${wardId}_${date}`,
+      new_value: census, details: { wardId, date, totalPatients }, severity: "info", status_code: 200, success: true,
     });
 
-    res.status(200).json({
-      message: "Census draft saved successfully",
-      census,
-    });
+    res.status(200).json({ message: "Census draft saved successfully", census });
   } catch (error) {
     console.error("SAVE CENSUS DRAFT ERROR:", error);
     res.status(500).json({ message: "Failed to save census draft" });
@@ -90,53 +73,34 @@ exports.saveWardCensusDraft = async (req, res) => {
 
 exports.submitWardCensus = async (req, res) => {
   try {
-    const {
-      wardId,
-      date,
-      diets = {},
-      special = {},
-      extras = {},
-      customExtras = [],
-    } = req.body;
+    const { wardId, date, diets = {}, special = {}, extras = {}, customExtras = [] } = req.body;
 
-    if (!wardId || !date) {
-      return res.status(400).json({ message: "wardId and date are required" });
+    if (!wardId || !date) return res.status(400).json({ message: "wardId and date are required" });
+    
+    // Security: Only allow edits for the current day
+    if (date !== getTodaySL()) {
+      return res.status(403).json({ message: "You can only edit records for the current day." });
     }
 
-    const totalPatients = Object.values(diets).reduce(
-      (sum, value) => sum + (Number(value) || 0),
-      0
-    );
+    // Security: Prevent editing if locked
+    const existing = await censusModel.getWardCensusByDate(wardId, date);
+    if (existing && existing.status === "locked") {
+      return res.status(403).json({ message: "This record is locked and cannot be edited." });
+    }
+
+    const totalPatients = Object.values(diets).reduce((sum, value) => sum + (Number(value) || 0), 0);
 
     const census = await censusModel.upsertWardCensus({
-      wardId,
-      entryDate: date,
-      status: "submitted",
-      totalPatients,
-      diets,
-      special,
-      extras,
-      customExtras,
-      submittedBy: req.user?.id || null,
-      submittedAt: new Date(),
+      wardId, entryDate: date, status: "submitted", totalPatients, diets, special, extras, customExtras,
+      submittedBy: req.user?.id || null, submittedAt: new Date(),
     });
 
     await writeAudit({
-      req,
-      action: "SUBMIT_CENSUS",
-      entity: "census_entries",
-      entity_id: `${wardId}_${date}`,
-      new_value: census,
-      details: { wardId, date, totalPatients },
-      severity: "info",
-      status_code: 200,
-      success: true,
+      req, action: "SUBMIT_CENSUS", entity: "census_entries", entity_id: `${wardId}_${date}`,
+      new_value: census, details: { wardId, date, totalPatients }, severity: "info", status_code: 200, success: true,
     });
 
-    res.status(200).json({
-      message: "Ward census submitted successfully",
-      census,
-    });
+    res.status(200).json({ message: "Ward census submitted successfully", census });
   } catch (error) {
     console.error("SUBMIT CENSUS ERROR:", error);
     res.status(500).json({ message: "Failed to submit ward census" });
@@ -146,10 +110,7 @@ exports.submitWardCensus = async (req, res) => {
 exports.getStaffMeals = async (req, res) => {
   try {
     const { date } = req.query;
-
-    if (!date) {
-      return res.status(400).json({ message: "date is required" });
-    }
+    if (!date) return res.status(400).json({ message: "date is required" });
 
     const staffMeals = await censusModel.getStaffMealsByDate(date);
     res.status(200).json({ staffMeals });
@@ -161,47 +122,47 @@ exports.getStaffMeals = async (req, res) => {
 
 exports.submitStaffMeals = async (req, res) => {
   try {
-    const {
-      date,
-      breakfast = 0,
-      lunch = 0,
-      dinner = 0,
-      staffCycle = "Chicken",
-    } = req.body;
+    const { date, breakfast = 0, lunch = 0, dinner = 0, staffCycle = "Chicken" } = req.body;
 
-    if (!date) {
-      return res.status(400).json({ message: "date is required" });
+    if (!date) return res.status(400).json({ message: "date is required" });
+
+    // Security: Only allow edits for the current day
+    if (date !== getTodaySL()) {
+      return res.status(403).json({ message: "You can only edit records for the current day." });
+    }
+
+    // Security: Prevent editing if locked
+    const existing = await censusModel.getStaffMealsByDate(date);
+    if (existing && existing.status === "locked") {
+      return res.status(403).json({ message: "Staff meals are locked and cannot be edited." });
     }
 
     const staffMeals = await censusModel.upsertStaffMeals({
-      mealDate: date,
-      breakfast,
-      lunch,
-      dinner,
-      staffCycle,
-      status: "submitted",
-      submittedBy: req.user?.id || null,
-      submittedAt: new Date(),
+      mealDate: date, breakfast, lunch, dinner, staffCycle, status: "submitted",
+      submittedBy: req.user?.id || null, submittedAt: new Date(),
     });
 
     await writeAudit({
-      req,
-      action: "SUBMIT_STAFF_MEALS",
-      entity: "staff_meals",
-      entity_id: date,
-      new_value: staffMeals,
-      details: { date, breakfast, lunch, dinner },
-      severity: "info",
-      status_code: 200,
-      success: true,
+      req, action: "SUBMIT_STAFF_MEALS", entity: "staff_meals", entity_id: date,
+      new_value: staffMeals, details: { date, breakfast, lunch, dinner }, severity: "info", status_code: 200, success: true,
     });
 
-    res.status(200).json({
-      message: "Staff meals submitted successfully",
-      staffMeals,
-    });
+    res.status(200).json({ message: "Staff meals submitted successfully", staffMeals });
   } catch (error) {
     console.error("SUBMIT STAFF MEALS ERROR:", error);
     res.status(500).json({ message: "Failed to submit staff meals" });
+  }
+};
+
+exports.getMySubmissions = async (req, res) => {
+  try {
+    const { date } = req.query;
+    if (!date) return res.status(400).json({ message: "date is required" });
+
+    const submissions = await censusModel.getSubmissionsByDate(date);
+    res.status(200).json({ submissions });
+  } catch (error) {
+    console.error("GET MY SUBMISSIONS ERROR:", error);
+    res.status(500).json({ message: "Failed to fetch submissions" });
   }
 };
